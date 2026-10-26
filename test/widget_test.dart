@@ -3,36 +3,41 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:boom/main.dart';
 
 void main() {
-  testWidgets('Verificacion de pantalla de bienvenida y navegacion a iniciar sesion',
+  testWidgets('Verificacion de pantalla de carga y transicion a opciones de acceso',
       (WidgetTester probador) async {
     await probador.pumpWidget(const AplicacionPsicoBloom());
+
+    // Al inicio se muestra la pantalla de carga con la mascota y el indicador
+    expect(find.text('PsicoBloom'), findsWidgets);
+    expect(find.text('Cargando...'), findsOneWidget);
+
+    // Avanza el tiempo para completar la precarga y la transicion
+    await probador.pump(const Duration(milliseconds: 2000));
     await probador.pumpAndSettle();
 
-    // Comprueba elementos en bienvenida
-    expect(find.text('PsicoBloom'), findsWidgets);
-    expect(
-      find.text('Tu camino hacia el bienestar\ncomienza con una conexión'),
-      findsOneWidget,
-    );
+    // Comprueba elementos en la pantalla de opciones de acceso
+    expect(find.text('Bienvenido a PsicoBloom'), findsOneWidget);
     expect(find.text('Iniciar sesión'), findsOneWidget);
-    expect(find.text('Crear cuenta'), findsOneWidget);
+    expect(find.text('Crear una cuenta'), findsOneWidget);
+    expect(find.text('Continuar con Google'), findsOneWidget);
 
     // Navega a iniciar sesion
     await probador.tap(find.text('Iniciar sesión'));
     await probador.pumpAndSettle();
 
     expect(find.text('Qué gusto verte de nuevo'), findsOneWidget);
-    expect(find.text('Continuar con Google'), findsOneWidget);
     expect(find.text('¿Olvidaste tu contraseña?'), findsOneWidget);
   });
 
-  testWidgets('Verificacion del flujo de registro en dos pasos',
+  testWidgets('Verificacion del flujo de registro desde opciones de acceso',
       (WidgetTester probador) async {
     await probador.pumpWidget(const AplicacionPsicoBloom());
+    // Pasa la pantalla de carga
+    await probador.pump(const Duration(milliseconds: 2000));
     await probador.pumpAndSettle();
 
-    // Pulsa Crear cuenta desde bienvenida
-    await probador.tap(find.text('Crear cuenta'));
+    // Pulsa Crear una cuenta desde las opciones de acceso
+    await probador.tap(find.text('Crear una cuenta'));
     await probador.pumpAndSettle();
 
     // Verifica paso 1

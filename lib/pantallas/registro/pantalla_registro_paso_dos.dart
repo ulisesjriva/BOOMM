@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../tema/tema_psicobloom.dart';
+import '../../componentes/fondo_decorativo_bloom.dart';
 import 'pantalla_verificar_correo.dart';
 
 /// Enum que define los dos unicos tipos de usuario disponibles en el registro publico.
@@ -89,30 +90,33 @@ class _PantallaRegistroPasoDosState extends State<PantallaRegistroPasoDos> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: TemaPsicobloom.colorFondo,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.pop(context),
-          tooltip: 'Regresar',
-        ),
-        title: const Text(
-          'Seguridad y perfil',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: TemaPsicobloom.colorTexto,
-          ),
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Form(
-            key: _claveFormulario,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+      backgroundColor: Colors.transparent,
+      body: FondoDecorativoBloom(
+        mostrarHojas: true,
+        mostrarCorazones: true,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8.0, top: 4.0),
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    color: TemaPsicobloom.colorTexto,
+                    onPressed: () => Navigator.pop(context),
+                    tooltip: 'Regresar',
+                  ),
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                  child: Form(
+                    key: _claveFormulario,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
                 const SizedBox(height: 8),
 
                 // Indicador de paso 2 de 2 completado
@@ -385,8 +389,12 @@ class _PantallaRegistroPasoDosState extends State<PantallaRegistroPasoDos> {
           ),
         ),
       ),
-    );
-  }
+    ],
+  ),
+),
+),
+);
+}
 
   Widget _tarjetaOpcionRol({
     required String titulo,

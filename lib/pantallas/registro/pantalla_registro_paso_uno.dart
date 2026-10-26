@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../tema/tema_psicobloom.dart';
+import '../../componentes/fondo_decorativo_bloom.dart';
 import '../acceso/pantalla_iniciar_sesion.dart';
 import 'pantalla_registro_paso_dos.dart';
 
@@ -45,43 +46,30 @@ class _PantallaRegistroPasoUnoState extends State<PantallaRegistroPasoUno> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: TemaPsicobloom.colorFondo,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.pop(context),
-          tooltip: 'Regresar',
-        ),
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/imagenes/icono_psicobloom.png',
-              width: 24,
-              height: 24,
-              errorBuilder: (context, error, stackTrace) => const Icon(
-                Icons.local_florist_rounded,
-                size: 20,
-                color: TemaPsicobloom.colorPrincipal,
+      backgroundColor: Colors.transparent,
+      body: FondoDecorativoBloom(
+        mostrarHojas: true,
+        mostrarCorazones: true,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8.0, top: 4.0),
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    color: TemaPsicobloom.colorTexto,
+                    onPressed: () => Navigator.pop(context),
+                    tooltip: 'Regresar',
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'PsicoBloom',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: TemaPsicobloom.colorTexto,
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Form(
-            key: _claveFormulario,
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                  child: Form(
+                    key: _claveFormulario,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -282,7 +270,11 @@ class _PantallaRegistroPasoUnoState extends State<PantallaRegistroPasoUno> {
           ),
         ),
       ),
-    );
-  }
+    ],
+  ),
+),
+),
+);
+}
 }
 

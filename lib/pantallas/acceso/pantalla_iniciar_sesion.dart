@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../tema/tema_psicobloom.dart';
+import '../../componentes/fondo_decorativo_bloom.dart';
 import '../../componentes/icono_google.dart';
 import 'pantalla_recuperar_clave.dart';
 import '../registro/pantalla_registro_paso_uno.dart';
 import '../registro/pantalla_completar_perfil.dart';
 
-/// Pantalla para el inicio de sesion de usuarios con correo/clave o mediante Google.
+/// Pantalla para el inicio de sesion de usuarios con correo/clave o mediante Google,
+/// enmarcada en el lienzo vectorial nativo con la identidad visual completa.
 class PantallaIniciarSesion extends StatefulWidget {
   const PantallaIniciarSesion({super.key});
 
@@ -37,7 +39,6 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
       _estaCargando = true;
     });
 
-    // Simulacion de validacion local antes de la conexion con Supabase Auth
     Future.delayed(const Duration(milliseconds: 600), () {
       if (!mounted) return;
       setState(() {
@@ -80,7 +81,7 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
           ],
         ),
         content: const Text(
-          'PsicoBloom utilizará el flujo seguro OAuth de Supabase. El sistema abrirá la ventana oficial de cuentas de Google sin solicitar tu contraseña dentro de la aplicación.\n\nEsta integración se conectará en la etapa de servicios.',
+          'PsicoBloom utilizará el flujo seguro OAuth de Supabase sin pedir contraseñas dentro de la aplicación.\n\n¿Deseas previsualizar la pantalla de completar perfil para nuevos usuarios?',
           style: TextStyle(
             color: TemaPsicobloom.colorTexto,
             height: 1.4,
@@ -100,7 +101,7 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
                 ),
               );
             },
-            child: const Text('Ver pantalla completar perfil'),
+            child: const Text('Ver completar perfil'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
@@ -114,256 +115,310 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: TemaPsicobloom.colorFondo,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.pop(context),
-          tooltip: 'Regresar',
-        ),
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/imagenes/icono_psicobloom.png',
-              width: 24,
-              height: 24,
-              errorBuilder: (context, error, stackTrace) => const Icon(
-                Icons.local_florist_rounded,
-                size: 20,
-                color: TemaPsicobloom.colorPrincipal,
+      backgroundColor: Colors.transparent,
+      body: FondoDecorativoBloom(
+        mostrarHojas: true,
+        mostrarCorazones: true,
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Barra superior transparente con boton de regreso
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8.0, top: 4.0),
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    color: TemaPsicobloom.colorTexto,
+                    onPressed: () => Navigator.pop(context),
+                    tooltip: 'Regresar',
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'PsicoBloom',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: TemaPsicobloom.colorTexto,
+
+              // Contenido con desplazamiento
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 4.0),
+                  child: Form(
+                    key: _claveFormulario,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Mascota oficial de PsicoBloom
+                        Center(
+                          child: Container(
+                            width: 105,
+                            height: 105,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: TemaPsicobloom.colorPrincipal.withOpacity(0.12),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: Image.asset(
+                              'assets/imagenes/icono_psicobloom.png',
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => const Icon(
+                                Icons.local_florist_rounded,
+                                size: 64,
+                                color: TemaPsicobloom.colorPrincipal,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Nombre de marca y subtitulo aprobados
+                        const Text(
+                          'PsicoBloom',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF38236B),
+                            letterSpacing: -0.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Encuentra atención psicológica\ncerca de ti.',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            color: TemaPsicobloom.colorTextoSecundario,
+                            height: 1.25,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Titulo Iniciar sesion y saludo
+                        const Text(
+                          'Iniciar sesión',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: TemaPsicobloom.colorTexto,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Qué gusto verte de nuevo',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: TemaPsicobloom.colorTextoSecundario,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Campo Correo electronico
+                        const Text(
+                          'Correo electrónico',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: TemaPsicobloom.colorTexto,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: _controladorCorreo,
+                          keyboardType: TextInputType.emailAddress,
+                          autocorrect: false,
+                          decoration: const InputDecoration(
+                            hintText: 'tu@correo.com',
+                            prefixIcon: Icon(Icons.mail_outline_rounded),
+                          ),
+                          validator: (valor) {
+                            if (valor == null || valor.trim().isEmpty) {
+                              return 'Por favor ingresa tu correo electrónico';
+                            }
+                            if (!valor.contains('@') || !valor.contains('.')) {
+                              return 'Ingresa un formato de correo válido';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Campo Contrasena
+                        const Text(
+                          'Contraseña',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: TemaPsicobloom.colorTexto,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: _controladorClave,
+                          obscureText: !_mostrarClave,
+                          decoration: InputDecoration(
+                            hintText: '••••••••',
+                            prefixIcon: const Icon(Icons.lock_outline_rounded),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _mostrarClave
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _mostrarClave = !_mostrarClave;
+                                });
+                              },
+                              tooltip: _mostrarClave
+                                  ? 'Ocultar contraseña'
+                                  : 'Mostrar contraseña',
+                            ),
+                          ),
+                          validator: (valor) {
+                            if (valor == null || valor.isEmpty) {
+                              return 'Por favor ingresa tu contraseña';
+                            }
+                            if (valor.length < 6) {
+                              return 'La contraseña debe tener al menos 6 caracteres';
+                            }
+                            return null;
+                          },
+                        ),
+
+                        // Enlace a recuperar contrasena
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const PantallaRecuperarClave(),
+                                ),
+                              );
+                            },
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                            ),
+                            child: const Text('¿Olvidaste tu contraseña?'),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Boton principal Iniciar sesion con flecha
+                        ElevatedButton(
+                          onPressed: _estaCargando ? null : _ejecutarInicioSesion,
+                          child: _estaCargando
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text('Iniciar sesión'),
+                                    SizedBox(width: 8),
+                                    Icon(Icons.arrow_forward_rounded, size: 20),
+                                  ],
+                                ),
+                        ),
+                        const SizedBox(height: 18),
+
+                        // Separador "o"
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Divider(color: TemaPsicobloom.colorBorde, thickness: 1),
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 14),
+                              child: Text(
+                                'o',
+                                style: TextStyle(
+                                  color: TemaPsicobloom.colorTextoSecundario,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            const Expanded(
+                              child: Divider(color: TemaPsicobloom.colorBorde, thickness: 1),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+
+                        // Boton Continuar con Google
+                        OutlinedButton(
+                          onPressed: _continuarConGoogle,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: TemaPsicobloom.colorTexto,
+                            side: const BorderSide(color: TemaPsicobloom.colorBorde, width: 1.2),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              IconoGoogle(tamano: 20),
+                              SizedBox(width: 10),
+                              Text(
+                                'Continuar con Google',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: TemaPsicobloom.colorTexto,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Enlace a registro
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              '¿No tienes una cuenta? ',
+                              style: TextStyle(
+                                color: TemaPsicobloom.colorTextoSecundario,
+                                fontSize: 13.5,
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const PantallaRegistroPasoUno(),
+                                  ),
+                                );
+                              },
+                              child: const Text(
+                                'Regístrate',
+                                style: TextStyle(
+                                  color: TemaPsicobloom.colorPrincipal,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Form(
-            key: _claveFormulario,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 12),
-                const Text(
-                  'Iniciar sesión',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: TemaPsicobloom.colorTexto,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Qué gusto verte de nuevo',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: TemaPsicobloom.colorTextoSecundario,
-                  ),
-                ),
-                const SizedBox(height: 28),
-
-                // Campo Correo electronico
-                const Text(
-                  'Correo electrónico',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: TemaPsicobloom.colorTexto,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _controladorCorreo,
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  decoration: const InputDecoration(
-                    hintText: 'tu@correo.com',
-                    prefixIcon: Icon(Icons.mail_outline_rounded),
-                  ),
-                  validator: (valor) {
-                    if (valor == null || valor.trim().isEmpty) {
-                      return 'Por favor ingresa tu correo electrónico';
-                    }
-                    if (!valor.contains('@') || !valor.contains('.')) {
-                      return 'Ingresa un formato de correo válido (ejemplo: usuario@correo.com)';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-
-                // Campo Contrasena
-                const Text(
-                  'Contraseña',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: TemaPsicobloom.colorTexto,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _controladorClave,
-                  obscureText: !_mostrarClave,
-                  decoration: InputDecoration(
-                    hintText: '••••••••',
-                    prefixIcon: const Icon(Icons.lock_outline_rounded),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _mostrarClave
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _mostrarClave = !_mostrarClave;
-                        });
-                      },
-                      tooltip: _mostrarClave
-                          ? 'Ocultar contraseña'
-                          : 'Mostrar contraseña',
-                    ),
-                  ),
-                  validator: (valor) {
-                    if (valor == null || valor.isEmpty) {
-                      return 'Por favor ingresa tu contraseña';
-                    }
-                    if (valor.length < 6) {
-                      return 'La contraseña debe tener al menos 6 caracteres';
-                    }
-                    return null;
-                  },
-                ),
-
-                // Enlace a recuperar contrasena
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const PantallaRecuperarClave(),
-                        ),
-                      );
-                    },
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                    ),
-                    child: const Text('¿Olvidaste tu contraseña?'),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Boton principal Iniciar sesion
-                ElevatedButton(
-                  onPressed: _estaCargando ? null : _ejecutarInicioSesion,
-                  child: _estaCargando
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Iniciar sesión'),
-                ),
-                const SizedBox(height: 24),
-
-                // Separador "o"
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Divider(color: TemaPsicobloom.colorBorde, thickness: 1),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: const Text(
-                        'o',
-                        style: TextStyle(
-                          color: TemaPsicobloom.colorTextoSecundario,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                    const Expanded(
-                      child: Divider(color: TemaPsicobloom.colorBorde, thickness: 1),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Boton Continuar con Google
-                OutlinedButton(
-                  onPressed: _continuarConGoogle,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: TemaPsicobloom.colorTexto,
-                    side: const BorderSide(color: TemaPsicobloom.colorBorde, width: 1.2),
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconoGoogle(tamano: 20),
-                      SizedBox(width: 12),
-                      Text(
-                        'Continuar con Google',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: TemaPsicobloom.colorTexto,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 28),
-
-                // Enlace a registro
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      '¿No tienes una cuenta? ',
-                      style: TextStyle(
-                        color: TemaPsicobloom.colorTextoSecundario,
-                        fontSize: 14,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const PantallaRegistroPasoUno(),
-                          ),
-                        );
-                      },
-                      child: const Text(
-                        'Regístrate',
-                        style: TextStyle(
-                          color: TemaPsicobloom.colorPrincipal,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-              ],
-            ),
+            ],
           ),
         ),
       ),

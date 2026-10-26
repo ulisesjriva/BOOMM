@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'tema/tema_psicobloom.dart';
-import 'pantallas/acceso/pantalla_bienvenida.dart';
+import 'pantallas/acceso/pantalla_carga.dart';
 
 void main() {
   runApp(const AplicacionPsicoBloom());
@@ -16,7 +16,7 @@ class AplicacionPsicoBloom extends StatelessWidget {
       title: 'PsicoBloom',
       debugShowCheckedModeBanner: false,
       theme: TemaPsicobloom.obtenerTema(),
-      home: const PantallaBienvenida(),
+      home: const PantallaCarga(),
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../tema/tema_psicobloom.dart';
+import '../../componentes/fondo_decorativo_bloom.dart';
 import '../acceso/pantalla_iniciar_sesion.dart';
 
 /// Pantalla que solicita al usuario abrir el enlace de confirmacion enviado a su correo.
@@ -103,40 +104,16 @@ class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: TemaPsicobloom.colorFondo,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/imagenes/icono_psicobloom.png',
-              width: 24,
-              height: 24,
-              errorBuilder: (context, error, stackTrace) => const Icon(
-                Icons.local_florist_rounded,
-                size: 20,
-                color: TemaPsicobloom.colorPrincipal,
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'PsicoBloom',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: TemaPsicobloom.colorTexto,
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+      backgroundColor: Colors.transparent,
+      body: FondoDecorativoBloom(
+        mostrarHojas: true,
+        mostrarCorazones: true,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
               const SizedBox(height: 20),
 
               // Ilustracion o contenedor con icono de correo
@@ -286,7 +263,8 @@ class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
