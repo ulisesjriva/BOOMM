@@ -1,0 +1,55 @@
+PROMPT PARA ANTIGRAVITY — PALETA DE COLORES PSICOBLOOM
+
+Lee AGENTS.md y revisa los bocetos vigentes antes de modificar el proyecto.
+Quiero unificar el tema visual de PsicoBloom usando la siguiente paleta propuesta, basada en los tonos morados, lavanda, verdes y fondos claros de mis bocetos. Estos HEX son una propuesta de normalizacion para programar, no una extraccion exacta ni colores oficiales definidos en los documentos.
+
+PALETA BASE
+Nombre en codigo | HEX | Color en Flutter | Uso
+colorPrincipal | #6D4BC3 | Color(0xFF6D4BC3) | Botones principales, enlaces y elemento seleccionado.
+colorPrincipalOscuro | #4C328F | Color(0xFF4C328F) | Enfasis, estados presionados y titulos destacados.
+colorLavanda | #EDE6FA | Color(0xFFEDE6FA) | Fondos suaves, tarjetas destacadas y seleccion de opciones.
+colorFondo | #FAF8FD | Color(0xFFFAF8FD) | Fondo general de las pantallas.
+colorSuperficie | #FFFFFF | Color(0xFFFFFFFF) | Formularios, tarjetas y cuadros de dialogo.
+colorSecundario | #2F7D62 | Color(0xFF2F7D62) | Acentos verdes e iconos complementarios.
+colorMenta | #E4F3EC | Color(0xFFE4F3EC) | Fondos verdes suaves y tarjetas informativas.
+colorTexto | #2D253A | Color(0xFF2D253A) | Titulos y texto principal.
+colorTextoSecundario | #655D70 | Color(0xFF655D70) | Descripciones, ayudas y etiquetas.
+colorBorde | #D8D0E5 | Color(0xFFD8D0E5) | Separadores y bordes decorativos; revisar contraste si identifica un control.
+colorSobrePrincipal | #FFFFFF | Color(0xFFFFFFFF) | Texto e iconos sobre botones morados.
+
+COLORES SEMANTICOS
+colorExito | #246B45 | Color(0xFF246B45) | Confirmaciones y operaciones exitosas.
+colorFondoExito | #E7F4EB | Color(0xFFE7F4EB) | Fondo de mensajes de exito.
+colorAdvertencia | #805600 | Color(0xFF805600) | Avisos y solicitudes pendientes.
+colorFondoAdvertencia | #FFF3D6 | Color(0xFFFFF3D6) | Fondo de avisos y pendientes.
+colorError | #B3261E | Color(0xFFB3261E) | Errores, rechazos y acciones destructivas.
+colorFondoError | #FCE8E6 | Color(0xFFFCE8E6) | Fondo de errores o rechazos.
+colorInformacion | #305F9E | Color(0xFF305F9E) | Mensajes informativos.
+colorFondoInformacion | #EAF1FB | Color(0xFFEAF1FB) | Fondo de mensajes informativos.
+
+REGLAS DE APLICACION
+1. Usa un solo tema coherente para paciente, profesional y administrador.
+2. Conserva el logo y la mascota originales. No recolorees las imagenes para forzarlas a coincidir con los HEX.
+3. Usa el morado principal para la accion mas importante de cada pantalla. Para acciones secundarias usa superficie blanca, texto morado y un borde que permita reconocer el control.
+4. Usa texto oscuro sobre lavanda o menta. No uses blanco sobre fondos claros.
+5. Usa verdes y colores de estado con moderacion; no conviertas todas las tarjetas en bloques de color.
+6. Cada estado debe llevar un texto y, cuando sea util, un icono. No comuniques errores, seleccion o estados de cita solo mediante color.
+7. Mantén un indicador de foco visible y estados distinguibles de pulsado, seleccionado, deshabilitado y cargando.
+8. Comprueba las combinaciones reales de texto y fondo: objetivo minimo de contraste 4.5:1 para texto normal y 3:1 para texto grande; revisa tambien controles e indicadores relevantes. No afirmes cumplir accesibilidad solo por usar esta paleta.
+9. Respeta los colores originales de la identidad de Google; no recolorees su logotipo de morado o verde.
+10. Aplica el tema a campos, botones, barras de navegacion, dialogos, mensajes y tarjetas. Evita HEX repetidos directamente en cada pantalla.
+
+IMPLEMENTACION
+- Revisa primero si ya existe un tema y amplialo sin duplicarlo.
+- Si no existe, propone lib/tema/tema_psicobloom.dart con una clase TemaPsicobloom.
+- Usa constantes con los nombres en español indicados, ThemeData y ColorScheme. Los nombres exigidos por Flutter se conservan en ingles.
+- Configura de forma explicita las parejas de fondo y contenido necesarias. No dependas de colores generados automaticamente si cambian el resultado aprobado.
+- Mantén las fuentes y estructura visual de los bocetos. No agregues dependencias o fuentes externas solo para aplicar colores.
+- No modifiques autenticacion, base de datos ni reglas de negocio para hacer este ajuste visual.
+- Antes de cambiar codigo, revisa flutter analyze y flutter test; despues formatea los archivos modificados y repite las verificaciones.
+
+PRIMERA RESPUESTA
+Presentame la paleta, indica si hay diferencias importantes con los bocetos vigentes y explica que archivo del tema modificarias. Espera mi confirmacion antes de aplicar los cambios.
+
+AL TERMINAR LA IMPLEMENTACION
+Explica los cambios en español sencillo, los archivos modificados y como comprobar la apariencia en el emulador. Informa los resultados reales de las verificaciones y cualquier limitacion pendiente.

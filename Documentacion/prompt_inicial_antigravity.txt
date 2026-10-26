@@ -1,0 +1,43 @@
+Actúa como mi asistente de desarrollo Flutter para PsicoBloom, proyecto académico de ESPOCH.
+
+Quiero implementar las interfaces de mis bocetos y comprender el código para poder explicarlo durante una exposición.
+
+Primero lee AGENTS.md y aplica sus reglas durante todo el trabajo. Confirma especialmente las convenciones de nombres en español y las excepciones obligatorias de Dart, Flutter y las APIs.
+
+Revisa los archivos de documentacion, incluyendo formulación, formalización, E03, E04, E05 y la versión corregida de E06. Inspecciona también las imágenes de los bocetos, el logo y eslogan de la aplicacion. No te limites a extraer el texto del Word. Si no puedes visualizar algún archivo, dilo; no inventes su contenido. Si hay varias versiones, identifica la vigente o pregunta cuando no sea posible determinarla.
+
+Revisa después el proyecto Flutter existente:
+- Estructura de carpetas.
+- Pantallas y componentes implementados.
+- Tema, imágenes y fuentes.
+- Navegación.
+- Dependencias.
+- Configuración de autenticación y servicios, sin mostrar secretos.
+- Estado de flutter analyze y flutter test.
+
+En esta primera respuesta no modifiques código. Entrégame:
+1. Los documentos que realmente pudiste revisar.
+2. Lo que ya está implementado.
+3. Las contradicciones o datos indispensables que falten.
+4. Una propuesta breve de etapas.
+5. Las pantallas de la primera etapa y el destino de sus botones.
+
+El objetivo inicial es implementar la interfaz, respetando el diseño aprobado: colores, tipografía, logo, mascota, distribución y textos. Adapta el contenido a diferentes tamaños de pantalla, al teclado y al desplazamiento sin provocar desbordamientos.
+
+Comienza proponiendo el tema visual y el recorrido de acceso: bienvenida, iniciar sesión, crear cuenta, continuar con Google y recuperar contraseña. Divide ese recorrido en etapas pequeñas si es necesario.
+
+No muestres una autenticación simulada como si fuera real. Si falta configurar un servicio, explica qué parte es visual y qué parte queda pendiente de integración. No construyas una pantalla falsa para pedir la contraseña de Google.
+
+La bienvenida no debe permitir saltar la autenticación. Una sesión existente y válida puede permitir el acceso sin volver a pedir la contraseña. El registro público solo ofrece paciente y profesional. Elegir profesional no concede automáticamente permisos aprobados. El administrador no se crea desde el registro público.
+
+Reutiliza lo que ya funciona y no reemplaces toda la estructura sin justificarlo. No copies restricciones ni tablas. No agregues tecnologías ni funcionalidades que compliquen el MVP o el cronograma. Contrasta las integraciones con los requisitos académicos antes de proponer eliminarlas o sustituirlas.
+
+Después de mi confirmación, implementa solamente la primera etapa.
+Al terminar, explica en español sencillo:
+- Qué cambiaste y por qué.
+- Qué hace cada archivo.
+- Cuáles son las clases y métodos principales.
+- Cómo comprobar el resultado.
+- Qué pruebas ejecutaste y qué quedó pendiente.
+
+Espera mi revisión antes de avanzar a la siguiente etapa. Si falta información indispensable, haz una sola pregunta concreta a la vez.
