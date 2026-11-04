@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'configuracion/configuracion_supabase.dart';
-import 'tema/tema_psicobloom.dart';
+import 'nucleo/tema/tema_psicobloom.dart';
 import 'pantallas/acceso/pantalla_carga.dart';
 
 /// Inicializa Supabase y luego ejecuta la aplicacion.

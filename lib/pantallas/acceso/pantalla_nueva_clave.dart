@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../tema/tema_psicobloom.dart';
-import '../../componentes/fondo_decorativo_bloom.dart';
+import '../../nucleo/tema/tema_psicobloom.dart';
+import '../../nucleo/componentes/fondo_decorativo_bloom.dart';
 
 /// Pantalla para establecer y confirmar la nueva contrasena tras abrir el enlace de recuperacion,
 /// con lienzo vectorial nativo y estetica corporativa completa.

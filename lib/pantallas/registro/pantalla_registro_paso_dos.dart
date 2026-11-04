@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../tema/tema_psicobloom.dart';
-import '../../componentes/fondo_decorativo_bloom.dart';
+import '../../nucleo/tema/tema_psicobloom.dart';
+import '../../nucleo/componentes/fondo_decorativo_bloom.dart';
 import 'pantalla_verificar_correo.dart';
 import '../../servicios/servicio_registro.dart';
 

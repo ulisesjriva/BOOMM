@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../tema/tema_psicobloom.dart';
-import '../../componentes/fondo_decorativo_bloom.dart';
+import '../../nucleo/tema/tema_psicobloom.dart';
+import '../../nucleo/componentes/fondo_decorativo_bloom.dart';
 import 'pantalla_nueva_clave.dart';
 
 /// Pantalla para solicitar el enlace de recuperacion de contrasena mediante correo,

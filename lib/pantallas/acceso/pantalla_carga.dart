@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../tema/tema_psicobloom.dart';
-import '../../componentes/fondo_decorativo_bloom.dart';
+import '../../nucleo/tema/tema_psicobloom.dart';
+import '../../nucleo/componentes/fondo_decorativo_bloom.dart';
 import 'pantalla_opciones_acceso.dart';
 
 /// Pantalla de bienvenida y carga ultra ligera que precarga texturas y recursos

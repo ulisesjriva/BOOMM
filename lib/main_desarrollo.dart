@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'tema/tema_psicobloom.dart';
+import 'nucleo/tema/tema_psicobloom.dart';
 import 'pantallas/paciente/pantalla_inicio_paciente.dart';
 
 void main() {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../tema/tema_psicobloom.dart';
-import '../../componentes/fondo_decorativo_bloom.dart';
+import '../../nucleo/tema/tema_psicobloom.dart';
+import '../../nucleo/componentes/fondo_decorativo_bloom.dart';
 import '../../componentes/barra_navegacion_paciente.dart';
 import '../../componentes/tarjeta_profesional.dart';
 import '../../modelos/profesional.dart';

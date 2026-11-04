@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../tema/tema_psicobloom.dart';
-import '../../componentes/fondo_decorativo_bloom.dart';
-import '../../componentes/icono_google.dart';
+import '../../nucleo/tema/tema_psicobloom.dart';
+import '../../nucleo/componentes/fondo_decorativo_bloom.dart';
+import '../../nucleo/componentes/icono_google.dart';
 import 'pantalla_recuperar_clave.dart';
 import '../registro/pantalla_registro_paso_uno.dart';
 import '../registro/pantalla_completar_perfil.dart';

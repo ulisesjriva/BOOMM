@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../tema/tema_psicobloom.dart';
-import '../../componentes/fondo_decorativo_bloom.dart';
-import '../../componentes/icono_google.dart';
+import '../../nucleo/tema/tema_psicobloom.dart';
+import '../../nucleo/componentes/fondo_decorativo_bloom.dart';
+import '../../nucleo/componentes/icono_google.dart';
 import 'pantalla_registro_paso_dos.dart';
 
 /// Pantalla para usuarios que inician por primera vez con Google y deben completar rol y datos basicos.
