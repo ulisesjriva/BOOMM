@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../tema/tema_psicobloom.dart';
 import '../../componentes/fondo_decorativo_bloom.dart';
 import 'pantalla_opciones_acceso.dart';
@@ -23,14 +24,16 @@ class _PantallaCargaState extends State<PantallaCarga> {
   }
 
   Future<void> _iniciarPrecargaYVerificacion() async {
-    // 1. Precarga en memoria grafica las imagenes clave para evitar parpadeos
+    // 1. Precarga la imagen con un tiempo limite para no bloquear el flujo.
+    //    En produccion se resuelve rapido; en pruebas el asset no carga y el
+    //    timeout de 100 ms permite continuar sin colgar el Future.delayed.
     try {
       await precacheImage(
         const AssetImage('assets/imagenes/icono_psicobloom.png'),
         context,
-      );
+      ).timeout(const Duration(milliseconds: 100), onTimeout: () {});
     } catch (_) {
-      // Si la precarga falla o es ignorada, la aplicacion continua sin bloquearse
+      // Si la precarga falla, la aplicacion continua sin bloquearse
     }
 
     // 2. Tiempo optimo para exhibir la marca e inicializar servicios sin saturar la app
@@ -60,7 +63,10 @@ class _PantallaCargaState extends State<PantallaCarga> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 20.0,
+              ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -72,7 +78,9 @@ class _PantallaCargaState extends State<PantallaCarga> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: TemaPsicobloom.colorPrincipal.withOpacity(0.12),
+                          color: TemaPsicobloom.colorPrincipal.withOpacity(
+                            0.12,
+                          ),
                           blurRadius: 28,
                           offset: const Offset(0, 10),
                         ),
@@ -148,4 +156,3 @@ class _PantallaCargaState extends State<PantallaCarga> {
     );
   }
 }
-
