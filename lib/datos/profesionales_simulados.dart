@@ -1,0 +1,80 @@
+import '../modelos/profesional.dart';
+
+/// Registros simulados de prueba para el entorno academico de PsicoBloom.
+/// Representan consultorios referenciales en Riobamba, Ecuador, para probar
+/// la interfaz de inicio, busqueda y mapa sin requerir conexion inmediata a Supabase.
+///
+/// AVISO: Las distancias y disponibilidades son datos ficticios de demostracion.
+const List<Profesional> profesionalesSimulados = [
+  Profesional(
+    id: 'prof-001',
+    nombre: 'Dra. María López',
+    especialidad: 'Psicología Clínica',
+    modalidad: 'Presencial',
+    disponibilidadTexto: 'Disponible hoy 15:00',
+    distanciaTexto: '1.2 km (aprox.)',
+    direccionConsultorio: 'Calle Veloz y 10 de Agosto, Centro de Riobamba',
+    latitud: -1.67098,
+    longitud: -78.64712,
+    calificacion: 4.9,
+    estaDisponible: true,
+    esDestacado: true,
+  ),
+  Profesional(
+    id: 'prof-002',
+    nombre: 'Dr. Carlos Pérez',
+    especialidad: 'Psicología Familiar',
+    modalidad: 'Presencial',
+    disponibilidadTexto: 'Disponible mañana',
+    distanciaTexto: '2.4 km (aprox.)',
+    direccionConsultorio: 'Av. Daniel León Borja y Brasil, sector La Estación',
+    latitud: -1.66645,
+    longitud: -78.65311,
+    calificacion: 4.8,
+    estaDisponible: true,
+    esDestacado: true,
+  ),
+  Profesional(
+    id: 'prof-003',
+    nombre: 'Dra. Ana Torres',
+    especialidad: 'Psicología de Pareja',
+    modalidad: 'Híbrida',
+    disponibilidadTexto: 'Disponible esta semana',
+    distanciaTexto: '3.1 km (aprox.)',
+    direccionConsultorio: 'Av. Antonio José de Sucre, sector Bellavista',
+    latitud: -1.65680,
+    longitud: -78.67750,
+    calificacion: 4.7,
+    estaDisponible: true,
+    esDestacado: true,
+  ),
+  Profesional(
+    id: 'prof-004',
+    nombre: 'Lic. David Morales',
+    especialidad: 'Psicoterapia Cognitiva',
+    modalidad: 'Virtual',
+    disponibilidadTexto: 'Disponible hoy 17:30',
+    distanciaTexto: '1.8 km (aprox.)',
+    direccionConsultorio:
+        'Calle Primera Constituyente y Colón, sector Parque Maldonado',
+    latitud: -1.67230,
+    longitud: -78.64920,
+    calificacion: 4.9,
+    estaDisponible: false,
+    esDestacado: false,
+  ),
+  Profesional(
+    id: 'prof-005',
+    nombre: 'Dra. Elena Viteri',
+    especialidad: 'Psicología Infantil',
+    modalidad: 'Presencial',
+    disponibilidadTexto: 'Disponible esta semana',
+    distanciaTexto: '2.0 km (aprox.)',
+    direccionConsultorio: 'Calle Guayaquil y Espejo, sector La Merced',
+    latitud: -1.66910,
+    longitud: -78.65080,
+    calificacion: 4.8,
+    estaDisponible: true,
+    esDestacado: false,
+  ),
+];
