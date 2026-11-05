@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:boom/main.dart';
-import 'package:boom/pantallas/acceso/pantalla_carga.dart';
+import 'package:boom/modulos/autenticacion/vistas/pantalla_carga.dart';
 
 /// Espera la imagen antes de avanzar el tiempo de la pantalla de carga.
 Future<void> completarCargaInicial(WidgetTester probador) async {

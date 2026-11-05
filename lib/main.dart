@@ -6,13 +6,16 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'configuracion/configuracion_supabase.dart';
-import 'modelos/enlace_autenticacion.dart';
+
+import 'package:boom/modulos/autenticacion/modelos/enlace_autenticacion.dart';
+
 import 'nucleo/tema/tema_psicobloom.dart';
-import 'pantallas/acceso/pantalla_carga.dart';
-import 'pantallas/acceso/pantalla_iniciar_sesion.dart';
-import 'pantallas/acceso/pantalla_nueva_clave.dart';
-import 'pantallas/acceso/pantalla_opciones_acceso.dart';
-import 'pantallas/registro/pantalla_verificar_correo.dart';
+
+import 'package:boom/modulos/autenticacion/vistas/pantalla_carga.dart';
+import 'package:boom/modulos/autenticacion/vistas/pantalla_iniciar_sesion.dart';
+import 'package:boom/modulos/autenticacion/vistas/pantalla_nueva_clave.dart';
+import 'package:boom/modulos/autenticacion/vistas/pantalla_opciones_acceso.dart';
+import 'package:boom/modulos/autenticacion/vistas/pantalla_verificar_correo.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

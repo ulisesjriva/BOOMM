@@ -1,4 +1,9 @@
-enum TipoEnlaceAutenticacion { confirmacion, recuperacion, abrirAcceso, invalido }
+enum TipoEnlaceAutenticacion {
+  confirmacion,
+  recuperacion,
+  abrirAcceso,
+  invalido,
+}
 
 /// Datos de un enlace propio. El token solo vive en memoria y nunca se imprime.
 class EnlaceAutenticacion {
@@ -20,7 +25,8 @@ class EnlaceAutenticacion {
       uri.path == ruta;
 
   static EnlaceAutenticacion? desdeUri(Uri uri) {
-    final esAcceso = uri.scheme == 'psicobloom' &&
+    final esAcceso =
+        uri.scheme == 'psicobloom' &&
         uri.host == 'acceso' &&
         !uri.hasPort &&
         uri.userInfo.isEmpty &&
@@ -50,15 +56,21 @@ class EnlaceAutenticacion {
         return const EnlaceAutenticacion._(TipoEnlaceAutenticacion.abrirAcceso);
       }
       // Los callbacks OAuth antiguos siguen siendo responsabilidad del SDK.
-      if (esAcceso && !valores.containsKey('token_hash') &&
-          (valores.containsKey('code') || valores.containsKey('access_token'))) {
+      if (esAcceso &&
+          !valores.containsKey('token_hash') &&
+          (valores.containsKey('code') ||
+              valores.containsKey('access_token'))) {
         return null;
       }
-      if (valores.keys.any((clave) => !['tipo', 'token_hash'].contains(clave))) {
+      if (valores.keys.any(
+        (clave) => !['tipo', 'token_hash'].contains(clave),
+      )) {
         return const EnlaceAutenticacion._(TipoEnlaceAutenticacion.invalido);
       }
       final token = valores['token_hash'];
-      if (token == null || token.isEmpty || token.length > 2048 ||
+      if (token == null ||
+          token.isEmpty ||
+          token.length > 2048 ||
           !RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(token)) {
         return const EnlaceAutenticacion._(TipoEnlaceAutenticacion.invalido);
       }

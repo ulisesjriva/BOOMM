@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 
-import '../../servicios/servicio_inicio_sesion.dart';
+import 'package:boom/modulos/autenticacion/servicios/servicio_inicio_sesion.dart';
 
 import 'package:boom/modulos/paciente/vistas/pantalla_inicio_paciente.dart';
 
-import '../../nucleo/tema/tema_psicobloom.dart';
-import '../../nucleo/componentes/fondo_decorativo_bloom.dart';
-import '../../nucleo/componentes/icono_google.dart';
-import 'pantalla_recuperar_clave.dart';
-import '../registro/pantalla_registro_paso_uno.dart';
-import '../registro/pantalla_completar_perfil.dart';
+import 'package:boom/nucleo/tema/tema_psicobloom.dart';
+import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
+import 'package:boom/nucleo/componentes/icono_google.dart';
+import 'package:boom/modulos/autenticacion/vistas/pantalla_recuperar_clave.dart';
+import 'package:boom/modulos/autenticacion/vistas/pantalla_registro_paso_uno.dart';
+import 'package:boom/modulos/autenticacion/vistas/pantalla_completar_perfil.dart';
 
 /// Inicio de sesion real con correo y clave, conservando la identidad visual.
 /// El boton Google conserva la previsualizacion existente; aun no autentica.

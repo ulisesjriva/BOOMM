@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../nucleo/tema/tema_psicobloom.dart';
-import '../../nucleo/componentes/fondo_decorativo_bloom.dart';
-import 'pantalla_verificar_correo.dart';
-import '../../servicios/servicio_registro.dart';
+import 'package:boom/nucleo/tema/tema_psicobloom.dart';
+import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
+import 'package:boom/modulos/autenticacion/vistas/pantalla_verificar_correo.dart';
+import 'package:boom/modulos/autenticacion/servicios/servicio_registro.dart';
 
 /// Enum que define los dos unicos tipos de usuario disponibles en el registro publico.
 enum TipoUsuario { paciente, profesional }

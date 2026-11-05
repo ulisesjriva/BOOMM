@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../nucleo/tema/tema_psicobloom.dart';
-import '../../nucleo/componentes/fondo_decorativo_bloom.dart';
-import '../acceso/pantalla_iniciar_sesion.dart';
-import '../../servicios/servicio_registro.dart';
-import '../../servicios/servicio_enlace_autenticacion.dart';
-import '../../modelos/enlace_autenticacion.dart';
+import 'package:boom/nucleo/tema/tema_psicobloom.dart';
+import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
+import 'package:boom/modulos/autenticacion/vistas/pantalla_iniciar_sesion.dart';
+import 'package:boom/modulos/autenticacion/servicios/servicio_registro.dart';
+import 'package:boom/modulos/autenticacion/servicios/servicio_enlace_autenticacion.dart';
+import 'package:boom/modulos/autenticacion/modelos/enlace_autenticacion.dart';
 
 /// Pantalla que solicita al usuario abrir el enlace de confirmacion enviado a su correo.
 class PantallaVerificarCorreo extends StatefulWidget {
@@ -338,7 +338,8 @@ class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
   Future<void> _confirmarDesdeEnlace() async {
     if (_estaComprobando || _confirmadoDesdeEnlace) return;
     final enlace = widget.enlace;
-    if (enlace == null || enlace.tipo != TipoEnlaceAutenticacion.confirmacion) return;
+    if (enlace == null || enlace.tipo != TipoEnlaceAutenticacion.confirmacion)
+      return;
     setState(() => _estaComprobando = true);
     try {
       final correo = await _servicioEnlace.confirmarCorreo(enlace);
@@ -351,14 +352,17 @@ class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
       });
     } catch (error) {
       if (!mounted) return;
-      setState(() => _mensajeEnlace = ServicioEnlaceAutenticacion.explicarError(error));
+      setState(
+        () => _mensajeEnlace = ServicioEnlaceAutenticacion.explicarError(error),
+      );
     } finally {
       if (mounted) setState(() => _estaComprobando = false);
     }
   }
 
   Widget _construirDesdeEnlace() {
-    final esValido = widget.enlace?.tipo == TipoEnlaceAutenticacion.confirmacion;
+    final esValido =
+        widget.enlace?.tipo == TipoEnlaceAutenticacion.confirmacion;
     return PopScope(
       canPop: false,
       child: Scaffold(
@@ -373,28 +377,44 @@ class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Icon(
-                      _confirmadoDesdeEnlace ? Icons.mark_email_read_outlined : Icons.mark_email_unread_outlined,
+                      _confirmadoDesdeEnlace
+                          ? Icons.mark_email_read_outlined
+                          : Icons.mark_email_unread_outlined,
                       size: 70,
                       color: TemaPsicobloom.colorPrincipal,
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      _confirmadoDesdeEnlace ? 'Tu correo está confirmado' : esValido ? 'Confirma tu correo' : 'Enlace no válido',
+                      _confirmadoDesdeEnlace
+                          ? 'Tu correo está confirmado'
+                          : esValido
+                          ? 'Confirma tu correo'
+                          : 'Enlace no válido',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      _mensajeEnlace ?? (esValido
-                          ? 'Pulsa el botón para confirmar tu correo con Supabase. Después podrás iniciar sesión.'
-                          : 'Abre el enlace más reciente del correo o solicita uno nuevo desde la aplicación.'),
+                      _mensajeEnlace ??
+                          (esValido
+                              ? 'Pulsa el botón para confirmar tu correo con Supabase. Después podrás iniciar sesión.'
+                              : 'Abre el enlace más reciente del correo o solicita uno nuevo desde la aplicación.'),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
                     if (esValido && !_confirmadoDesdeEnlace)
                       ElevatedButton(
-                        onPressed: _estaComprobando ? null : _confirmarDesdeEnlace,
-                        child: Text(_estaComprobando ? 'Confirmando…' : 'Confirmar mi correo'),
+                        onPressed: _estaComprobando
+                            ? null
+                            : _confirmarDesdeEnlace,
+                        child: Text(
+                          _estaComprobando
+                              ? 'Confirmando…'
+                              : 'Confirmar mi correo',
+                        ),
                       ),
                     const SizedBox(height: 12),
                     OutlinedButton(
@@ -410,5 +430,4 @@ class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
       ),
     );
   }
-
 }

@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import '../../nucleo/tema/tema_psicobloom.dart';
-import '../../nucleo/componentes/fondo_decorativo_bloom.dart';
-import '../../modelos/enlace_autenticacion.dart';
-import '../../servicios/servicio_enlace_autenticacion.dart';
-import 'pantalla_iniciar_sesion.dart';
+import 'package:boom/nucleo/tema/tema_psicobloom.dart';
+import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
+import 'package:boom/modulos/autenticacion/modelos/enlace_autenticacion.dart';
+import 'package:boom/modulos/autenticacion/servicios/servicio_enlace_autenticacion.dart';
+import 'package:boom/modulos/autenticacion/vistas/pantalla_iniciar_sesion.dart';
 
 /// Pantalla para establecer y confirmar la nueva contrasena tras abrir el enlace de recuperacion,
 /// con lienzo vectorial nativo y estetica corporativa completa.
@@ -52,7 +52,10 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
     if (_ocupado || _enlaceValidado) return;
     final enlace = widget.enlace;
     if (enlace == null || enlace.tipo != TipoEnlaceAutenticacion.recuperacion) {
-      setState(() => _mensajeEnlace = 'Abre un enlace de recuperación válido desde tu correo.');
+      setState(
+        () => _mensajeEnlace =
+            'Abre un enlace de recuperación válido desde tu correo.',
+      );
       return;
     }
     setState(() => _estaValidando = true);
@@ -61,18 +64,24 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
       if (!mounted) return;
       setState(() {
         _enlaceValidado = true;
-        _mensajeEnlace = 'Enlace validado. Ya puedes crear una contraseña nueva.';
+        _mensajeEnlace =
+            'Enlace validado. Ya puedes crear una contraseña nueva.';
       });
     } catch (error) {
       if (!mounted) return;
-      setState(() => _mensajeEnlace = ServicioEnlaceAutenticacion.explicarError(error));
+      setState(
+        () => _mensajeEnlace = ServicioEnlaceAutenticacion.explicarError(error),
+      );
     } finally {
       if (mounted) setState(() => _estaValidando = false);
     }
   }
 
   Future<void> _guardarNuevaContrasena() async {
-    if (_ocupado || !_enlaceValidado || !(_claveFormulario.currentState?.validate() ?? false)) return;
+    if (_ocupado ||
+        !_enlaceValidado ||
+        !(_claveFormulario.currentState?.validate() ?? false))
+      return;
     final clave = _controladorNuevaClave.text;
     FocusScope.of(context).unfocus();
     setState(() => _estaGuardando = true);
@@ -87,9 +96,15 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
         barrierDismissible: false,
         builder: (contextoDialogo) => AlertDialog(
           backgroundColor: TemaPsicobloom.colorSuperficie,
-          icon: const Icon(Icons.check_circle_outline_rounded, color: TemaPsicobloom.colorExito, size: 42),
+          icon: const Icon(
+            Icons.check_circle_outline_rounded,
+            color: TemaPsicobloom.colorExito,
+            size: 42,
+          ),
           title: const Text('Contraseña actualizada'),
-          content: const Text('Supabase guardó tu nueva contraseña. Inicia sesión para continuar.'),
+          content: const Text(
+            'Supabase guardó tu nueva contraseña. Inicia sesión para continuar.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(contextoDialogo),
@@ -101,7 +116,9 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
       if (mounted) _irAlLogin();
     } catch (error) {
       if (!mounted) return;
-      setState(() => _mensajeEnlace = ServicioEnlaceAutenticacion.explicarError(error));
+      setState(
+        () => _mensajeEnlace = ServicioEnlaceAutenticacion.explicarError(error),
+      );
     } finally {
       if (mounted) setState(() => _estaGuardando = false);
     }
@@ -136,7 +153,10 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
                 // Contenido con formulario
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24.0,
+                      vertical: 8.0,
+                    ),
                     child: Form(
                       key: _claveFormulario,
                       child: Column(
@@ -153,7 +173,8 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: TemaPsicobloom.colorPrincipal.withValues(alpha: 0.12),
+                                    color: TemaPsicobloom.colorPrincipal
+                                        .withValues(alpha: 0.12),
                                     blurRadius: 18,
                                     offset: const Offset(0, 6),
                                   ),
@@ -162,11 +183,12 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
                               child: Image.asset(
                                 'assets/imagenes/icono_psicobloom.png',
                                 fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) => const Icon(
-                                  Icons.local_florist_rounded,
-                                  size: 64,
-                                  color: TemaPsicobloom.colorPrincipal,
-                                ),
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(
+                                      Icons.local_florist_rounded,
+                                      size: 64,
+                                      color: TemaPsicobloom.colorPrincipal,
+                                    ),
                               ),
                             ),
                           ),
@@ -201,7 +223,11 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
                           if (!_enlaceValidado) ...[
                             OutlinedButton(
                               onPressed: _ocupado ? null : _validarEnlace,
-                              child: Text(_estaValidando ? 'Validando…' : 'Validar enlace de recuperación'),
+                              child: Text(
+                                _estaValidando
+                                    ? 'Validando…'
+                                    : 'Validar enlace de recuperación',
+                              ),
                             ),
                             const SizedBox(height: 18),
                           ],
@@ -222,7 +248,9 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
                             obscureText: !_mostrarNuevaClave,
                             decoration: InputDecoration(
                               hintText: '••••••••',
-                              prefixIcon: const Icon(Icons.lock_outline_rounded),
+                              prefixIcon: const Icon(
+                                Icons.lock_outline_rounded,
+                              ),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _mostrarNuevaClave
@@ -270,7 +298,9 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
                             obscureText: !_mostrarConfirmarClave,
                             decoration: InputDecoration(
                               hintText: '••••••••',
-                              prefixIcon: const Icon(Icons.lock_outline_rounded),
+                              prefixIcon: const Icon(
+                                Icons.lock_outline_rounded,
+                              ),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _mostrarConfirmarClave
@@ -279,7 +309,8 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
                                 ),
                                 onPressed: () {
                                   setState(() {
-                                    _mostrarConfirmarClave = !_mostrarConfirmarClave;
+                                    _mostrarConfirmarClave =
+                                        !_mostrarConfirmarClave;
                                   });
                                 },
                                 tooltip: _mostrarConfirmarClave
@@ -301,7 +332,9 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
 
                           // Boton Guardar contrasena con flecha
                           ElevatedButton(
-                            onPressed: _ocupado || !_enlaceValidado ? null : _guardarNuevaContrasena,
+                            onPressed: _ocupado || !_enlaceValidado
+                                ? null
+                                : _guardarNuevaContrasena,
                             child: _estaGuardando
                                 ? const SizedBox(
                                     height: 22,
@@ -316,7 +349,10 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
                                     children: [
                                       Text('Guardar contraseña'),
                                       SizedBox(width: 8),
-                                      Icon(Icons.arrow_forward_rounded, size: 20),
+                                      Icon(
+                                        Icons.arrow_forward_rounded,
+                                        size: 20,
+                                      ),
                                     ],
                                   ),
                           ),

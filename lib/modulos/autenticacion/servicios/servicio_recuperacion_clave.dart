@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../configuracion/configuracion_supabase.dart';
+import 'package:boom/configuracion/configuracion_supabase.dart';
 
 class ErrorRecuperacionClave implements Exception {
   final String mensaje;

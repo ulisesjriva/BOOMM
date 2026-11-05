@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:boom/modelos/perfil_usuario.dart';
-import 'package:boom/pantallas/registro/pantalla_registro_paso_dos.dart';
-import 'package:boom/pantallas/registro/pantalla_verificar_correo.dart';
-import 'package:boom/servicios/servicio_registro.dart';
+import 'package:boom/modulos/autenticacion/vistas/pantalla_registro_paso_dos.dart';
+import 'package:boom/modulos/autenticacion/vistas/pantalla_verificar_correo.dart';
+import 'package:boom/modulos/autenticacion/servicios/servicio_registro.dart';
 
 // Dobles de prueba: verifican la interfaz, no una conexion real a Supabase.
 class ServicioRegistroPrueba extends ServicioRegistro {

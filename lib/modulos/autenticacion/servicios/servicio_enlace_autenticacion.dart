@@ -1,7 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../configuracion/configuracion_supabase.dart';
-import '../modelos/enlace_autenticacion.dart';
+import 'package:boom/configuracion/configuracion_supabase.dart';
+import 'package:boom/modulos/autenticacion/modelos/enlace_autenticacion.dart';
 
 class ErrorEnlaceAutenticacion implements Exception {
   final String mensaje;
@@ -20,7 +20,9 @@ class ServicioEnlaceAutenticacion {
 
   SupabaseClient get _conexion {
     if (_cerrado) {
-      throw const ErrorEnlaceAutenticacion('Abre nuevamente el enlace del correo.');
+      throw const ErrorEnlaceAutenticacion(
+        'Abre nuevamente el enlace del correo.',
+      );
     }
     if (!ConfiguracionSupabase.estaConfigurado) {
       throw const ErrorEnlaceAutenticacion(
@@ -35,16 +37,23 @@ class ServicioEnlaceAutenticacion {
   }
 
   Future<String> confirmarCorreo(EnlaceAutenticacion enlace) async {
-    if (enlace.tipo != TipoEnlaceAutenticacion.confirmacion || enlace.tokenHash == null) {
-      throw const ErrorEnlaceAutenticacion('El enlace de confirmacion no es valido.');
+    if (enlace.tipo != TipoEnlaceAutenticacion.confirmacion ||
+        enlace.tokenHash == null) {
+      throw const ErrorEnlaceAutenticacion(
+        'El enlace de confirmacion no es valido.',
+      );
     }
     final respuesta = await _conexion.auth.verifyOTP(
       tokenHash: enlace.tokenHash,
       type: OtpType.email,
     );
     final usuario = respuesta.user;
-    if (usuario == null || usuario.emailConfirmedAt == null || respuesta.session == null) {
-      throw const ErrorEnlaceAutenticacion('No se pudo comprobar la confirmacion del correo.');
+    if (usuario == null ||
+        usuario.emailConfirmedAt == null ||
+        respuesta.session == null) {
+      throw const ErrorEnlaceAutenticacion(
+        'No se pudo comprobar la confirmacion del correo.',
+      );
     }
     final correo = usuario.email ?? '';
     await cerrar();
@@ -53,16 +62,22 @@ class ServicioEnlaceAutenticacion {
 
   Future<void> validarRecuperacion(EnlaceAutenticacion enlace) async {
     _idRecuperacion = null;
-    if (enlace.tipo != TipoEnlaceAutenticacion.recuperacion || enlace.tokenHash == null) {
-      throw const ErrorEnlaceAutenticacion('Abre un enlace de recuperacion valido desde tu correo.');
+    if (enlace.tipo != TipoEnlaceAutenticacion.recuperacion ||
+        enlace.tokenHash == null) {
+      throw const ErrorEnlaceAutenticacion(
+        'Abre un enlace de recuperacion valido desde tu correo.',
+      );
     }
     final respuesta = await _conexion.auth.verifyOTP(
       tokenHash: enlace.tokenHash,
       type: OtpType.recovery,
     );
-    if (respuesta.user == null || respuesta.session == null ||
+    if (respuesta.user == null ||
+        respuesta.session == null ||
         respuesta.session!.user.id != respuesta.user!.id) {
-      throw const ErrorEnlaceAutenticacion('No se obtuvo una sesion de recuperacion valida.');
+      throw const ErrorEnlaceAutenticacion(
+        'No se obtuvo una sesion de recuperacion valida.',
+      );
     }
     _idRecuperacion = respuesta.user!.id;
   }
@@ -85,17 +100,27 @@ class ServicioEnlaceAutenticacion {
     if (errorClave != null) throw ErrorEnlaceAutenticacion(errorClave);
     final cliente = _cliente;
     final id = _idRecuperacion;
-    if (_cerrado || cliente == null || id == null ||
+    if (_cerrado ||
+        cliente == null ||
+        id == null ||
         cliente.auth.currentSession?.user.id != id) {
-      throw const ErrorEnlaceAutenticacion('Primero valida el enlace de recuperacion.');
+      throw const ErrorEnlaceAutenticacion(
+        'Primero valida el enlace de recuperacion.',
+      );
     }
     final usuario = (await cliente.auth.getUser()).user;
     if (usuario?.id != id) {
-      throw const ErrorEnlaceAutenticacion('La sesion de recuperacion ya no es valida. Solicita otro enlace.');
+      throw const ErrorEnlaceAutenticacion(
+        'La sesion de recuperacion ya no es valida. Solicita otro enlace.',
+      );
     }
-    final respuesta = await cliente.auth.updateUser(UserAttributes(password: clave));
+    final respuesta = await cliente.auth.updateUser(
+      UserAttributes(password: clave),
+    );
     if (respuesta.user?.id != id) {
-      throw const ErrorEnlaceAutenticacion('No se pudo comprobar el cambio de contrasena.');
+      throw const ErrorEnlaceAutenticacion(
+        'No se pudo comprobar el cambio de contrasena.',
+      );
     }
     await cerrar();
   }
@@ -120,8 +145,10 @@ class ServicioEnlaceAutenticacion {
     if (error is ErrorEnlaceAutenticacion) return error.mensaje;
     if (error is AuthException) {
       final mensaje = error.message.toLowerCase();
-      if (error.statusCode == '429') return 'Demasiados intentos. Espera antes de continuar.';
-      if (mensaje.contains('expired') || mensaje.contains('invalid token') ||
+      if (error.statusCode == '429')
+        return 'Demasiados intentos. Espera antes de continuar.';
+      if (mensaje.contains('expired') ||
+          mensaje.contains('invalid token') ||
           mensaje.contains('token has expired or is invalid')) {
         return 'El enlace vencio, ya fue utilizado o no es valido. Solicita uno nuevo.';
       }

@@ -1,7 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../configuracion/configuracion_supabase.dart';
-import '../modelos/perfil_usuario.dart';
+import 'package:boom/configuracion/configuracion_supabase.dart';
+import 'package:boom/modelos/perfil_usuario.dart';
 
 class ErrorRegistro implements Exception {
   final String mensaje;

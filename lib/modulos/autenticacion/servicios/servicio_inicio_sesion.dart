@@ -1,8 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../configuracion/configuracion_supabase.dart';
-import '../modelos/perfil_usuario.dart';
-import 'servicio_registro.dart';
+import 'package:boom/configuracion/configuracion_supabase.dart';
+import 'package:boom/modelos/perfil_usuario.dart';
+import 'package:boom/modulos/autenticacion/servicios/servicio_registro.dart';
 
 class ErrorInicioSesion implements Exception {
   final String mensaje;
@@ -43,7 +43,9 @@ class ServicioInicioSesion {
 
       // Reutiliza getUser, perfil_del_usuario_actual y la validacion de id
       // implementados en ServicioRegistro.
-      final perfil = await const ServicioRegistro().comprobarConfirmacion(correo);
+      final perfil = await const ServicioRegistro().comprobarConfirmacion(
+        correo,
+      );
       if (perfil == null) {
         throw const ErrorInicioSesion(
           'No se pudo comprobar la cuenta y su correo confirmado.',

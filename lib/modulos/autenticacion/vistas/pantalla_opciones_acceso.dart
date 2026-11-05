@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../nucleo/tema/tema_psicobloom.dart';
-import '../../nucleo/componentes/fondo_decorativo_bloom.dart';
-import '../../nucleo/componentes/icono_google.dart';
-import 'pantalla_iniciar_sesion.dart';
-import '../registro/pantalla_registro_paso_uno.dart';
-import '../registro/pantalla_completar_perfil.dart';
+import 'package:boom/nucleo/tema/tema_psicobloom.dart';
+import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
+import 'package:boom/nucleo/componentes/icono_google.dart';
+import 'package:boom/modulos/autenticacion/vistas/pantalla_iniciar_sesion.dart';
+import 'package:boom/modulos/autenticacion/vistas/pantalla_registro_paso_uno.dart';
+import 'package:boom/modulos/autenticacion/vistas/pantalla_completar_perfil.dart';
 
 /// Pantalla donde el usuario elige su metodo de acceso:
 /// Iniciar sesion, Crear una cuenta o Continuar con Google.
@@ -33,10 +33,7 @@ class PantallaOpcionesAcceso extends StatelessWidget {
         ),
         content: const Text(
           'PsicoBloom conectará de forma segura con Google mediante OAuth en Supabase sin pedir contraseñas externas dentro de la app.\n\n¿Deseas previsualizar la pantalla de completar perfil para nuevos usuarios?',
-          style: TextStyle(
-            color: TemaPsicobloom.colorTexto,
-            height: 1.4,
-          ),
+          style: TextStyle(color: TemaPsicobloom.colorTexto, height: 1.4),
         ),
         actions: [
           TextButton(
@@ -73,10 +70,17 @@ class PantallaOpcionesAcceso extends StatelessWidget {
         mostrarHojas: true,
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 16.0,
+            ),
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                minHeight: tamano.height - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom - 32,
+                minHeight:
+                    tamano.height -
+                    MediaQuery.of(context).padding.top -
+                    MediaQuery.of(context).padding.bottom -
+                    32,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -94,7 +98,9 @@ class PantallaOpcionesAcceso extends StatelessWidget {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: TemaPsicobloom.colorPrincipal.withOpacity(0.10),
+                              color: TemaPsicobloom.colorPrincipal.withOpacity(
+                                0.10,
+                              ),
                               blurRadius: 20,
                               offset: const Offset(0, 8),
                             ),
@@ -103,11 +109,12 @@ class PantallaOpcionesAcceso extends StatelessWidget {
                         child: Image.asset(
                           'assets/imagenes/icono_psicobloom.png',
                           fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) => const Icon(
-                            Icons.local_florist_rounded,
-                            size: 70,
-                            color: TemaPsicobloom.colorPrincipal,
-                          ),
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(
+                                Icons.local_florist_rounded,
+                                size: 70,
+                                color: TemaPsicobloom.colorPrincipal,
+                              ),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -142,10 +149,15 @@ class PantallaOpcionesAcceso extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: TemaPsicobloom.colorSuperficie,
                       borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: TemaPsicobloom.colorBorde, width: 1.2),
+                      border: Border.all(
+                        color: TemaPsicobloom.colorBorde,
+                        width: 1.2,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: TemaPsicobloom.colorPrincipal.withOpacity(0.06),
+                          color: TemaPsicobloom.colorPrincipal.withOpacity(
+                            0.06,
+                          ),
                           blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
@@ -180,7 +192,8 @@ class PantallaOpcionesAcceso extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const PantallaIniciarSesion(),
+                                builder: (context) =>
+                                    const PantallaIniciarSesion(),
                               ),
                             );
                           },
@@ -201,7 +214,8 @@ class PantallaOpcionesAcceso extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const PantallaRegistroPasoUno(),
+                                builder: (context) =>
+                                    const PantallaRegistroPasoUno(),
                               ),
                             );
                           },
@@ -220,10 +234,15 @@ class PantallaOpcionesAcceso extends StatelessWidget {
                         Row(
                           children: [
                             const Expanded(
-                              child: Divider(color: TemaPsicobloom.colorBorde, thickness: 1),
+                              child: Divider(
+                                color: TemaPsicobloom.colorBorde,
+                                thickness: 1,
+                              ),
                             ),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                              ),
                               child: Text(
                                 'o',
                                 style: TextStyle(
@@ -233,7 +252,10 @@ class PantallaOpcionesAcceso extends StatelessWidget {
                               ),
                             ),
                             const Expanded(
-                              child: Divider(color: TemaPsicobloom.colorBorde, thickness: 1),
+                              child: Divider(
+                                color: TemaPsicobloom.colorBorde,
+                                thickness: 1,
+                              ),
                             ),
                           ],
                         ),
@@ -244,7 +266,10 @@ class PantallaOpcionesAcceso extends StatelessWidget {
                           onPressed: () => _continuarConGoogle(context),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: TemaPsicobloom.colorTexto,
-                            side: const BorderSide(color: TemaPsicobloom.colorBorde, width: 1.2),
+                            side: const BorderSide(
+                              color: TemaPsicobloom.colorBorde,
+                              width: 1.2,
+                            ),
                           ),
                           child: const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -287,4 +312,3 @@ class PantallaOpcionesAcceso extends StatelessWidget {
     );
   }
 }
-

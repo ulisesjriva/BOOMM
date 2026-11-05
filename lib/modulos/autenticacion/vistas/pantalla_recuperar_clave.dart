@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../nucleo/tema/tema_psicobloom.dart';
-import '../../nucleo/componentes/fondo_decorativo_bloom.dart';
-import '../../servicios/servicio_recuperacion_clave.dart';
+import 'package:boom/nucleo/tema/tema_psicobloom.dart';
+import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
+import 'package:boom/modulos/autenticacion/servicios/servicio_recuperacion_clave.dart';
 
 /// Pantalla para solicitar el enlace de recuperacion de contrasena mediante correo,
 /// con la estetica visual completa y lienzo vectorial nativo.
@@ -25,7 +25,8 @@ class _PantallaRecuperarClaveState extends State<PantallaRecuperarClave> {
   }
 
   Future<void> _enviarEnlace() async {
-    if (_estaEnviando || !(_claveFormulario.currentState?.validate() ?? false)) {
+    if (_estaEnviando ||
+        !(_claveFormulario.currentState?.validate() ?? false)) {
       return;
     }
     final correo = _controladorCorreo.text.trim();
@@ -97,7 +98,9 @@ class _PantallaRecuperarClaveState extends State<PantallaRecuperarClave> {
                     child: IconButton(
                       icon: const Icon(Icons.arrow_back_rounded),
                       color: TemaPsicobloom.colorTexto,
-                      onPressed: _estaEnviando ? null : () => Navigator.pop(context),
+                      onPressed: _estaEnviando
+                          ? null
+                          : () => Navigator.pop(context),
                       tooltip: 'Regresar',
                     ),
                   ),
@@ -106,7 +109,10 @@ class _PantallaRecuperarClaveState extends State<PantallaRecuperarClave> {
                 // Contenido con formulario
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24.0,
+                      vertical: 8.0,
+                    ),
                     child: Form(
                       key: _claveFormulario,
                       child: Column(
@@ -123,7 +129,8 @@ class _PantallaRecuperarClaveState extends State<PantallaRecuperarClave> {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: TemaPsicobloom.colorPrincipal.withValues(alpha: 0.12),
+                                    color: TemaPsicobloom.colorPrincipal
+                                        .withValues(alpha: 0.12),
                                     blurRadius: 18,
                                     offset: const Offset(0, 6),
                                   ),
@@ -132,11 +139,12 @@ class _PantallaRecuperarClaveState extends State<PantallaRecuperarClave> {
                               child: Image.asset(
                                 'assets/imagenes/icono_psicobloom.png',
                                 fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) => const Icon(
-                                  Icons.local_florist_rounded,
-                                  size: 64,
-                                  color: TemaPsicobloom.colorPrincipal,
-                                ),
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(
+                                      Icons.local_florist_rounded,
+                                      size: 64,
+                                      color: TemaPsicobloom.colorPrincipal,
+                                    ),
                               ),
                             ),
                           ),
@@ -187,7 +195,8 @@ class _PantallaRecuperarClaveState extends State<PantallaRecuperarClave> {
                               if (valor == null || valor.trim().isEmpty) {
                                 return 'Por favor ingresa tu correo electrónico';
                               }
-                              if (!valor.contains('@') || !valor.contains('.')) {
+                              if (!valor.contains('@') ||
+                                  !valor.contains('.')) {
                                 return 'Ingresa un formato de correo válido';
                               }
                               return null;
@@ -212,7 +221,10 @@ class _PantallaRecuperarClaveState extends State<PantallaRecuperarClave> {
                                     children: [
                                       Text('Enviar enlace'),
                                       SizedBox(width: 8),
-                                      Icon(Icons.arrow_forward_rounded, size: 20),
+                                      Icon(
+                                        Icons.arrow_forward_rounded,
+                                        size: 20,
+                                      ),
                                     ],
                                   ),
                           ),
@@ -221,7 +233,9 @@ class _PantallaRecuperarClaveState extends State<PantallaRecuperarClave> {
                           // Enlace Volver a iniciar sesion
                           Center(
                             child: TextButton(
-                              onPressed: _estaEnviando ? null : () => Navigator.pop(context),
+                              onPressed: _estaEnviando
+                                  ? null
+                                  : () => Navigator.pop(context),
                               child: const Text('Volver a iniciar sesión'),
                             ),
                           ),
