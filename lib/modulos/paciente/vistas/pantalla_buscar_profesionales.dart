@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 
-import '../../nucleo/tema/tema_psicobloom.dart';
-import '../../nucleo/componentes/fondo_decorativo_bloom.dart';
-import '../../modulos/paciente/componentes/barra_navegacion_paciente.dart';
-import '../../modulos/paciente/componentes/tarjeta_profesional.dart';
-import '../../modelos/profesional.dart';
-import '../../modelos/filtro_profesional.dart';
-import '../../datos/gestor_favoritos.dart';
-import '../../repositorios/repositorio_profesionales.dart';
-import '../../repositorios/repositorio_profesionales_simulado.dart';
+import 'package:boom/nucleo/tema/tema_psicobloom.dart';
+import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
+import 'package:boom/modulos/paciente/componentes/barra_navegacion_paciente.dart';
+import 'package:boom/modulos/paciente/componentes/tarjeta_profesional.dart';
+import 'package:boom/modelos/profesional.dart';
+import 'package:boom/modelos/filtro_profesional.dart';
+import 'package:boom/datos/gestor_favoritos.dart';
+import 'package:boom/repositorios/repositorio_profesionales.dart';
+import 'package:boom/repositorios/repositorio_profesionales_simulado.dart';
+
 import 'pantalla_inicio_paciente.dart';
 
 /// Pantalla 6: Buscar profesionales.

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../nucleo/tema/tema_psicobloom.dart';
-import '../../nucleo/componentes/fondo_decorativo_bloom.dart';
-import '../../modulos/paciente/componentes/barra_navegacion_paciente.dart';
-import '../../modulos/paciente/componentes/tarjeta_profesional.dart';
-import '../../modelos/profesional.dart';
-import '../../datos/profesionales_simulados.dart';
-import '../../datos/gestor_favoritos.dart';
+import 'package:boom/nucleo/tema/tema_psicobloom.dart';
+import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
+import 'package:boom/modulos/paciente/componentes/barra_navegacion_paciente.dart';
+import 'package:boom/modulos/paciente/componentes/tarjeta_profesional.dart';
+import 'package:boom/modelos/profesional.dart';
+import 'package:boom/datos/profesionales_simulados.dart';
+import 'package:boom/datos/gestor_favoritos.dart';
+
 import 'pantalla_buscar_profesionales.dart';
 
 /// Pantalla 5: Inicio del paciente.

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+
 import '../../servicios/servicio_inicio_sesion.dart';
-import '../paciente/pantalla_inicio_paciente.dart';
+
+import 'package:boom/modulos/paciente/vistas/pantalla_inicio_paciente.dart';
+
 import '../../nucleo/tema/tema_psicobloom.dart';
 import '../../nucleo/componentes/fondo_decorativo_bloom.dart';
 import '../../nucleo/componentes/icono_google.dart';
@@ -35,7 +38,8 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
   }
 
   Future<void> _ejecutarInicioSesion() async {
-    if (_estaCargando || !(_claveFormulario.currentState?.validate() ?? false)) {
+    if (_estaCargando ||
+        !(_claveFormulario.currentState?.validate() ?? false)) {
       return;
     }
     final correo = _controladorCorreo.text.trim();
@@ -67,7 +71,9 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
         SnackBar(
           backgroundColor: TemaPsicobloom.colorPrincipalOscuro,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           content: Text(
             ServicioInicioSesion.explicarError(error),
             style: const TextStyle(color: Colors.white, fontSize: 13),
@@ -102,10 +108,7 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
         ),
         content: const Text(
           'PsicoBloom utilizará el flujo seguro OAuth de Supabase sin pedir contraseñas dentro de la aplicación.\n\n¿Deseas previsualizar la pantalla de completar perfil para nuevos usuarios?',
-          style: TextStyle(
-            color: TemaPsicobloom.colorTexto,
-            height: 1.4,
-          ),
+          style: TextStyle(color: TemaPsicobloom.colorTexto, height: 1.4),
         ),
         actions: [
           TextButton(
@@ -152,7 +155,9 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
                     child: IconButton(
                       icon: const Icon(Icons.arrow_back_rounded),
                       color: TemaPsicobloom.colorTexto,
-                      onPressed: _estaCargando ? null : () => Navigator.pop(context),
+                      onPressed: _estaCargando
+                          ? null
+                          : () => Navigator.pop(context),
                       tooltip: 'Regresar',
                     ),
                   ),
@@ -161,7 +166,10 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
                 // Contenido con desplazamiento
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 4.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24.0,
+                      vertical: 4.0,
+                    ),
                     child: Form(
                       key: _claveFormulario,
                       child: Column(
@@ -176,7 +184,8 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: TemaPsicobloom.colorPrincipal.withOpacity(0.12),
+                                    color: TemaPsicobloom.colorPrincipal
+                                        .withOpacity(0.12),
                                     blurRadius: 18,
                                     offset: const Offset(0, 6),
                                   ),
@@ -185,11 +194,12 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
                               child: Image.asset(
                                 'assets/imagenes/icono_psicobloom.png',
                                 fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) => const Icon(
-                                  Icons.local_florist_rounded,
-                                  size: 64,
-                                  color: TemaPsicobloom.colorPrincipal,
-                                ),
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(
+                                      Icons.local_florist_rounded,
+                                      size: 64,
+                                      color: TemaPsicobloom.colorPrincipal,
+                                    ),
                               ),
                             ),
                           ),
@@ -262,7 +272,8 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
                               if (valor == null || valor.trim().isEmpty) {
                                 return 'Por favor ingresa tu correo electrónico';
                               }
-                              if (!valor.contains('@') || !valor.contains('.')) {
+                              if (!valor.contains('@') ||
+                                  !valor.contains('.')) {
                                 return 'Ingresa un formato de correo válido';
                               }
                               return null;
@@ -286,7 +297,9 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
                             obscureText: !_mostrarClave,
                             decoration: InputDecoration(
                               hintText: '••••••••',
-                              prefixIcon: const Icon(Icons.lock_outline_rounded),
+                              prefixIcon: const Icon(
+                                Icons.lock_outline_rounded,
+                              ),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _mostrarClave
@@ -318,16 +331,21 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: _estaCargando ? null : () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const PantallaRecuperarClave(),
-                                  ),
-                                );
-                              },
+                              onPressed: _estaCargando
+                                  ? null
+                                  : () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const PantallaRecuperarClave(),
+                                        ),
+                                      );
+                                    },
                               style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
+                                ),
                               ),
                               child: const Text('¿Olvidaste tu contraseña?'),
                             ),
@@ -336,7 +354,9 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
 
                           // Boton principal Iniciar sesion con flecha
                           ElevatedButton(
-                            onPressed: _estaCargando ? null : _ejecutarInicioSesion,
+                            onPressed: _estaCargando
+                                ? null
+                                : _ejecutarInicioSesion,
                             child: _estaCargando
                                 ? const SizedBox(
                                     height: 22,
@@ -351,7 +371,10 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
                                     children: [
                                       Text('Iniciar sesión'),
                                       SizedBox(width: 8),
-                                      Icon(Icons.arrow_forward_rounded, size: 20),
+                                      Icon(
+                                        Icons.arrow_forward_rounded,
+                                        size: 20,
+                                      ),
                                     ],
                                   ),
                           ),
@@ -361,7 +384,10 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
                           Row(
                             children: [
                               const Expanded(
-                                child: Divider(color: TemaPsicobloom.colorBorde, thickness: 1),
+                                child: Divider(
+                                  color: TemaPsicobloom.colorBorde,
+                                  thickness: 1,
+                                ),
                               ),
                               const Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 14),
@@ -374,7 +400,10 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
                                 ),
                               ),
                               const Expanded(
-                                child: Divider(color: TemaPsicobloom.colorBorde, thickness: 1),
+                                child: Divider(
+                                  color: TemaPsicobloom.colorBorde,
+                                  thickness: 1,
+                                ),
                               ),
                             ],
                           ),
@@ -382,10 +411,15 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
 
                           // Boton Continuar con Google
                           OutlinedButton(
-                            onPressed: _estaCargando ? null : _continuarConGoogle,
+                            onPressed: _estaCargando
+                                ? null
+                                : _continuarConGoogle,
                             style: OutlinedButton.styleFrom(
                               foregroundColor: TemaPsicobloom.colorTexto,
-                              side: const BorderSide(color: TemaPsicobloom.colorBorde, width: 1.2),
+                              side: const BorderSide(
+                                color: TemaPsicobloom.colorBorde,
+                                width: 1.2,
+                              ),
                             ),
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -417,14 +451,17 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
                                 ),
                               ),
                               GestureDetector(
-                                onTap: _estaCargando ? null : () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const PantallaRegistroPasoUno(),
-                                    ),
-                                  );
-                                },
+                                onTap: _estaCargando
+                                    ? null
+                                    : () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const PantallaRegistroPasoUno(),
+                                          ),
+                                        );
+                                      },
                                 child: const Text(
                                   'Regístrate',
                                   style: TextStyle(

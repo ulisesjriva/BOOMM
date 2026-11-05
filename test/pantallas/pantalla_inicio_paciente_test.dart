@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
-import 'package:boom/pantallas/paciente/pantalla_inicio_paciente.dart';
+import 'package:boom/modulos/paciente/vistas/pantalla_inicio_paciente.dart';
 
 void main() {
   Widget crearPantallaDePrueba({String nombrePaciente = 'María'}) {

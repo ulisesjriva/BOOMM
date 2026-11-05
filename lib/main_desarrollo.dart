@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'nucleo/tema/tema_psicobloom.dart';
-import 'pantallas/paciente/pantalla_inicio_paciente.dart';
+
+import 'package:boom/modulos/paciente/vistas/pantalla_inicio_paciente.dart';
 
 void main() {
   runApp(const AplicacionPsicoBloomDesarrollo());

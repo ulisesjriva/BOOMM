@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/modelos/profesional.dart';
 import 'package:boom/repositorios/repositorio_profesionales_simulado.dart';
-import 'package:boom/pantallas/paciente/pantalla_buscar_profesionales.dart';
+import 'package:boom/modulos/paciente/vistas/pantalla_buscar_profesionales.dart';
 import 'package:boom/datos/gestor_favoritos.dart';
 
 void main() {
