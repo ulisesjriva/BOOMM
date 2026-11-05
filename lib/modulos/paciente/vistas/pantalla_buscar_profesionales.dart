@@ -1,16 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
 import 'package:boom/modulos/paciente/componentes/barra_navegacion_paciente.dart';
 import 'package:boom/modulos/paciente/componentes/tarjeta_profesional.dart';
-import 'package:boom/modelos/profesional.dart';
 import 'package:boom/modelos/filtro_profesional.dart';
 import 'package:boom/datos/gestor_favoritos.dart';
 import 'package:boom/repositorios/repositorio_profesionales.dart';
 import 'package:boom/repositorios/repositorio_profesionales_simulado.dart';
 
 import 'pantalla_inicio_paciente.dart';
+import '../controladores/controlador_buscar_profesionales.dart';
 
 /// Pantalla 6: Buscar profesionales.
 /// Directorio interactivo de atencion psicologica con busqueda textual,
@@ -27,103 +29,59 @@ class PantallaBuscarProfesionales extends StatefulWidget {
 
 class _PantallaBuscarProfesionalesState
     extends State<PantallaBuscarProfesionales> {
-  late final RepositorioProfesionales _repositorio;
+  late final ControladorBuscarProfesionales _controlador;
   final TextEditingController _controladorBusqueda = TextEditingController();
-
-  FiltroProfesional _filtro = FiltroProfesional.inicial();
-  List<Profesional> _profesionales = <Profesional>[];
-  bool _estaCargando = true;
-
-  List<String> _opcionesEspecialidades = const ['Todas'];
-  List<String> _opcionesModalidades = const ['Todas'];
-  List<String> _opcionesDisponibilidades = const ['Todas'];
 
   @override
   void initState() {
     super.initState();
-    _repositorio = widget.repositorio ?? RepositorioProfesionalesSimulado();
-    _inicializarCatalogosYCargar();
+    _controlador = ControladorBuscarProfesionales(
+      repositorio: widget.repositorio ?? RepositorioProfesionalesSimulado(),
+    );
+    _controlador.addListener(_actualizarVista);
+    unawaited(_controlador.inicializar());
+  }
+
+  void _actualizarVista() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
+    _controlador.removeListener(_actualizarVista);
+    _controlador.dispose();
     _controladorBusqueda.dispose();
     super.dispose();
   }
 
-  Future<void> _inicializarCatalogosYCargar() async {
-    final especialidades = await _repositorio.obtenerEspecialidades();
-    final modalidades = await _repositorio.obtenerModalidades();
-    final disponibilidades = await _repositorio.obtenerDisponibilidades();
-
-    if (!mounted) return;
-
-    setState(() {
-      _opcionesEspecialidades = especialidades;
-      _opcionesModalidades = modalidades;
-      _opcionesDisponibilidades = disponibilidades;
-    });
-
-    await _ejecutarBusqueda();
-  }
-
-  Future<void> _ejecutarBusqueda() async {
-    setState(() {
-      _estaCargando = true;
-    });
-
-    final resultados = await _repositorio.buscarProfesionales(_filtro);
-
-    if (!mounted) return;
-
-    setState(() {
-      _profesionales = resultados;
-      _estaCargando = false;
-    });
-  }
-
   void _actualizarTextoBusqueda(String nuevoTexto) {
-    _filtro = _filtro.copiarCon(textoBusqueda: nuevoTexto);
-    _ejecutarBusqueda();
+    unawaited(_controlador.actualizarTexto(nuevoTexto));
   }
 
   void _limpiarFiltros() {
     _controladorBusqueda.clear();
-    setState(() {
-      _filtro = FiltroProfesional.inicial();
-    });
-    _ejecutarBusqueda();
+    unawaited(_controlador.limpiarFiltros());
     _mostrarMensajeInformativo(
       'Se restablecieron todos los filtros de búsqueda.',
     );
   }
 
   void _cambiarEspecialidad(String nuevaEspecialidad) {
-    setState(() {
-      _filtro = _filtro.copiarCon(especialidad: nuevaEspecialidad);
-    });
-    _ejecutarBusqueda();
+    unawaited(_controlador.cambiarEspecialidad(nuevaEspecialidad));
   }
 
   void _cambiarModalidad(String nuevaModalidad) {
-    setState(() {
-      _filtro = _filtro.copiarCon(modalidad: nuevaModalidad);
-    });
-    _ejecutarBusqueda();
+    unawaited(_controlador.cambiarModalidad(nuevaModalidad));
   }
 
   void _cambiarDisponibilidad(String nuevaDisponibilidad) {
-    setState(() {
-      _filtro = _filtro.copiarCon(disponibilidad: nuevaDisponibilidad);
-    });
-    _ejecutarBusqueda();
+    unawaited(_controlador.cambiarDisponibilidad(nuevaDisponibilidad));
   }
 
   void _cambiarOrdenamiento(CriterioOrdenamiento nuevoOrden) {
-    setState(() {
-      _filtro = _filtro.copiarCon(ordenamiento: nuevoOrden);
-    });
-    _ejecutarBusqueda();
+    unawaited(_controlador.cambiarOrdenamiento(nuevoOrden));
   }
 
   void _alternarFavorito(String idProfesional) {
@@ -464,10 +422,10 @@ class _PantallaBuscarProfesionalesState
             Expanded(
               child: _construirBotonFiltro(
                 etiqueta: 'Especialidad',
-                valorActual: _filtro.especialidad,
+                valorActual: _controlador.filtro.especialidad,
                 icono: Icons.health_and_safety_outlined,
                 colorIcono: TemaPsicobloom.colorPrincipal,
-                opciones: _opcionesEspecialidades,
+                opciones: _controlador.especialidades,
                 alSeleccionar: _cambiarEspecialidad,
               ),
             ),
@@ -475,10 +433,10 @@ class _PantallaBuscarProfesionalesState
             Expanded(
               child: _construirBotonFiltro(
                 etiqueta: 'Disponibilidad',
-                valorActual: _filtro.disponibilidad,
+                valorActual: _controlador.filtro.disponibilidad,
                 icono: Icons.calendar_today_outlined,
                 colorIcono: TemaPsicobloom.colorSecundario,
-                opciones: _opcionesDisponibilidades,
+                opciones: _controlador.disponibilidades,
                 alSeleccionar: _cambiarDisponibilidad,
               ),
             ),
@@ -486,10 +444,10 @@ class _PantallaBuscarProfesionalesState
             Expanded(
               child: _construirBotonFiltro(
                 etiqueta: 'Modalidad',
-                valorActual: _filtro.modalidad,
+                valorActual: _controlador.filtro.modalidad,
                 icono: Icons.people_outline_rounded,
                 colorIcono: TemaPsicobloom.colorInformacion,
-                opciones: _opcionesModalidades,
+                opciones: _controlador.modalidades,
                 alSeleccionar: _cambiarModalidad,
               ),
             ),
@@ -671,7 +629,7 @@ class _PantallaBuscarProfesionalesState
 
   /// Contador de resultados y opciones de ordenamiento / limpiar filtros.
   Widget _construirBarraResultadosYOrden() {
-    final cantidad = _profesionales.length;
+    final cantidad = _controlador.profesionales.length;
     final String textoContador = cantidad == 1
         ? '1 profesional encontrado'
         : '$cantidad profesionales encontrados';
@@ -692,7 +650,7 @@ class _PantallaBuscarProfesionalesState
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_filtro.tieneFiltrosActivos) ...[
+            if (_controlador.filtro.tieneFiltrosActivos) ...[
               TextButton.icon(
                 onPressed: _limpiarFiltros,
                 icon: const Icon(Icons.refresh_rounded, size: 16),
@@ -712,7 +670,7 @@ class _PantallaBuscarProfesionalesState
               const SizedBox(width: 4),
             ],
             PopupMenuButton<CriterioOrdenamiento>(
-              initialValue: _filtro.ordenamiento,
+              initialValue: _controlador.filtro.ordenamiento,
               tooltip: 'Ordenar resultados',
               onSelected: _cambiarOrdenamiento,
               color: TemaPsicobloom.colorSuperficie,
@@ -755,10 +713,10 @@ class _PantallaBuscarProfesionalesState
                       criterio.etiqueta,
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight: criterio == _filtro.ordenamiento
+                        fontWeight: criterio == _controlador.filtro.ordenamiento
                             ? FontWeight.bold
                             : FontWeight.w500,
-                        color: criterio == _filtro.ordenamiento
+                        color: criterio == _controlador.filtro.ordenamiento
                             ? TemaPsicobloom.colorPrincipal
                             : TemaPsicobloom.colorTexto,
                       ),
@@ -775,7 +733,7 @@ class _PantallaBuscarProfesionalesState
 
   /// Listado de resultados o estado vacio cuando no hay coincidencias.
   Widget _construirCuerpoResultados() {
-    if (_estaCargando) {
+    if (_controlador.estaCargando) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 40.0),
         child: Center(
@@ -786,7 +744,21 @@ class _PantallaBuscarProfesionalesState
       );
     }
 
-    if (_profesionales.isEmpty) {
+    final mensajeError = _controlador.mensajeError;
+    if (mensajeError != null) {
+      return Column(
+        children: [
+          Text(mensajeError, textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            onPressed: () => unawaited(_controlador.inicializar()),
+            child: const Text('Reintentar'),
+          ),
+        ],
+      );
+    }
+
+    if (_controlador.profesionales.isEmpty) {
       return _construirEstadoVacio();
     }
 
@@ -794,7 +766,7 @@ class _PantallaBuscarProfesionalesState
       valueListenable: GestorFavoritos.instancia.favoritos,
       builder: (context, conjuntoFavoritos, child) {
         return Column(
-          children: _profesionales.map((profesional) {
+          children: _controlador.profesionales.map((profesional) {
             final bool esFavorito = conjuntoFavoritos.contains(profesional.id);
 
             return Padding(
