@@ -4,7 +4,7 @@ import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/modelos/profesional.dart';
 import 'package:boom/repositorios/repositorio_profesionales_simulado.dart';
 import 'package:boom/modulos/paciente/vistas/pantalla_buscar_profesionales.dart';
-import 'package:boom/datos/gestor_favoritos.dart';
+import 'package:boom/modulos/paciente/controladores/gestor_favoritos.dart';
 
 void main() {
   final List<Profesional> profesionalesPrueba = [

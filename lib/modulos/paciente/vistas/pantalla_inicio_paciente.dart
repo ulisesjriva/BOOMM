@@ -6,7 +6,7 @@ import 'package:boom/modulos/paciente/componentes/barra_navegacion_paciente.dart
 import 'package:boom/modulos/paciente/componentes/tarjeta_profesional.dart';
 import 'package:boom/modelos/profesional.dart';
 import 'package:boom/datos/profesionales_simulados.dart';
-import 'package:boom/datos/gestor_favoritos.dart';
+import 'package:boom/modulos/paciente/controladores/gestor_favoritos.dart';
 
 import 'pantalla_buscar_profesionales.dart';
 

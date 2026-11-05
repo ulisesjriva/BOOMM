@@ -7,7 +7,7 @@ import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
 import 'package:boom/modulos/paciente/componentes/barra_navegacion_paciente.dart';
 import 'package:boom/modulos/paciente/componentes/tarjeta_profesional.dart';
 import 'package:boom/modelos/filtro_profesional.dart';
-import 'package:boom/datos/gestor_favoritos.dart';
+import 'package:boom/modulos/paciente/controladores/gestor_favoritos.dart';
 import 'package:boom/repositorios/repositorio_profesionales.dart';
 import 'package:boom/repositorios/repositorio_profesionales_simulado.dart';
 
