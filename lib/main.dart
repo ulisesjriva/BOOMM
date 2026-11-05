@@ -29,10 +29,18 @@ Future<void> main() async {
           if (EnlaceAutenticacion.esUrlWebPropia(uri)) return false;
           if (uri.scheme != 'psicobloom' || uri.host != 'acceso') return false;
           try {
-            final valores = {...uri.queryParameters, ...Uri.splitQueryString(uri.fragment)};
+            final valores = {
+              ...uri.queryParameters,
+              ...Uri.splitQueryString(uri.fragment),
+            };
             if (valores.containsKey('token_hash')) return false;
-            return ['code', 'access_token', 'error', 'error_code', 'error_description']
-                .any(valores.containsKey);
+            return [
+              'code',
+              'access_token',
+              'error',
+              'error_code',
+              'error_description',
+            ].any(valores.containsKey);
           } on FormatException {
             return false;
           }
@@ -46,7 +54,16 @@ Future<void> main() async {
 }
 
 class AplicacionPsicoBloom extends StatefulWidget {
-  const AplicacionPsicoBloom({super.key});
+  const AplicacionPsicoBloom({
+    super.key,
+    this.flujoEnlaces,
+    this.obtenerEnlaceInicial,
+  });
+
+  /// Permite probar la navegacion sin abrir canales nativos de Android.
+  /// Si no se proporciona, la aplicacion usa app_links como antes.
+  final Stream<Uri>? flujoEnlaces;
+  final Future<Uri?> Function()? obtenerEnlaceInicial;
 
   @override
   State<AplicacionPsicoBloom> createState() => _AplicacionPsicoBloomState();
@@ -65,19 +82,33 @@ class _AplicacionPsicoBloomState extends State<AplicacionPsicoBloom> {
   @override
   void initState() {
     super.initState();
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    if (widget.flujoEnlaces != null ||
+        widget.obtenerEnlaceInicial != null ||
+        (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)) {
       unawaited(_escucharEnlaces());
     }
   }
 
   Future<void> _escucharEnlaces() async {
     try {
-      final enlaces = AppLinks();
-      _suscripcion = enlaces.uriLinkStream.listen(
+      final usaFuenteSimulada =
+          widget.flujoEnlaces != null || widget.obtenerEnlaceInicial != null;
+      final enlaces = usaFuenteSimulada ? null : AppLinks();
+      final flujo =
+          widget.flujoEnlaces ??
+          enlaces?.uriLinkStream ??
+          const Stream<Uri>.empty();
+      _suscripcion = flujo.listen(
         _recibirEnlace,
         onError: (Object error, StackTrace pila) => _avisarErrorEnlace(),
       );
-      final inicial = await enlaces.getInitialLink();
+      final obtenerInicial = widget.obtenerEnlaceInicial;
+      final Uri? inicial;
+      if (obtenerInicial != null) {
+        inicial = await obtenerInicial();
+      } else {
+        inicial = await enlaces?.getInitialLink();
+      }
       if (mounted && inicial != null) _recibirEnlace(inicial);
     } catch (_) {
       if (mounted) _avisarErrorEnlace();
@@ -88,7 +119,11 @@ class _AplicacionPsicoBloomState extends State<AplicacionPsicoBloom> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _mensajero.currentState?.showSnackBar(
-        const SnackBar(content: Text('No se pudo abrir el enlace. Intentalo de nuevo desde tu correo.')),
+        const SnackBar(
+          content: Text(
+            'No se pudo abrir el enlace. Intentalo de nuevo desde tu correo.',
+          ),
+        ),
       );
     });
   }
@@ -100,8 +135,10 @@ class _AplicacionPsicoBloomState extends State<AplicacionPsicoBloom> {
     final ahora = DateTime.now();
     final identidad = enlace.identidadEnMemoria;
     if (identidad == _identidadActiva ||
-        (identidad == _ultimaIdentidad && _horaUltimoEnlace != null &&
-            ahora.difference(_horaUltimoEnlace!) < const Duration(seconds: 2))) {
+        (identidad == _ultimaIdentidad &&
+            _horaUltimoEnlace != null &&
+            ahora.difference(_horaUltimoEnlace!) <
+                const Duration(seconds: 2))) {
       return;
     }
     _ultimaIdentidad = identidad;
@@ -109,7 +146,11 @@ class _AplicacionPsicoBloomState extends State<AplicacionPsicoBloom> {
     _pendiente = enlace;
     if (_identidadActiva != null) {
       _mensajero.currentState?.showSnackBar(
-        const SnackBar(content: Text('Recibiste otro enlace. Termina o cierra el proceso actual para continuar.')),
+        const SnackBar(
+          content: Text(
+            'Recibiste otro enlace. Termina o cierra el proceso actual para continuar.',
+          ),
+        ),
       );
     }
     _abrirPendiente();
@@ -130,11 +171,17 @@ class _AplicacionPsicoBloomState extends State<AplicacionPsicoBloom> {
   void _abrirPendiente() {
     final navegador = _navegador.currentState;
     final enlace = _pendiente;
-    if (!_arranqueListo || _identidadActiva != null || navegador == null || enlace == null) return;
+    if (!_arranqueListo ||
+        _identidadActiva != null ||
+        navegador == null ||
+        enlace == null)
+      return;
     _pendiente = null;
     _identidadActiva = enlace.identidadEnMemoria;
     final Widget pantalla = switch (enlace.tipo) {
-      TipoEnlaceAutenticacion.recuperacion => PantallaNuevaClave(enlace: enlace),
+      TipoEnlaceAutenticacion.recuperacion => PantallaNuevaClave(
+        enlace: enlace,
+      ),
       TipoEnlaceAutenticacion.abrirAcceso => const PantallaIniciarSesion(),
       _ => PantallaVerificarCorreo.desdeEnlace(enlace: enlace),
     };
@@ -142,13 +189,15 @@ class _AplicacionPsicoBloomState extends State<AplicacionPsicoBloom> {
       MaterialPageRoute<void>(builder: (_) => pantalla),
       (_) => false,
     );
-    unawaited(cierre.whenComplete(() {
-      _identidadActiva = null;
-      if (!mounted) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _abrirPendiente();
-      });
-    }));
+    unawaited(
+      cierre.whenComplete(() {
+        _identidadActiva = null;
+        if (!mounted) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _abrirPendiente();
+        });
+      }),
+    );
   }
 
   @override
