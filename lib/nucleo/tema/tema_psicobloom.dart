@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 /// Define el tema visual y la paleta de colores normalizada para PsicoBloom.
 class TemaPsicobloom {
@@ -132,4 +132,3 @@ class TemaPsicobloom {
     );
   }
 }
-

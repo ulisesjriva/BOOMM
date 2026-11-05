@@ -40,6 +40,17 @@
                     android:scheme="psicobloom"
                     android:host="acceso"/>
             </intent-filter>
+
+            <!-- Dominio y ruta verificados con assetlinks.json. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="psicobloom-7201a.web.app"
+                    android:path="/autenticacion.html" />
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

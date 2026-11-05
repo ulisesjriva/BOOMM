@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../nucleo/tema/tema_psicobloom.dart';
 import '../../nucleo/componentes/fondo_decorativo_bloom.dart';
-import '../../componentes/barra_navegacion_paciente.dart';
-import '../../componentes/tarjeta_profesional.dart';
+import '../../modulos/paciente/componentes/barra_navegacion_paciente.dart';
+import '../../modulos/paciente/componentes/tarjeta_profesional.dart';
 import '../../modelos/profesional.dart';
 import '../../modelos/filtro_profesional.dart';
 import '../../datos/gestor_favoritos.dart';

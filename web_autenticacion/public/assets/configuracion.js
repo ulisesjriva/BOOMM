@@ -1,0 +1,4 @@
+window.CONFIGURACION_PSICOBLOOM = Object.freeze({
+  urlSupabase: 'https://hteasqflwhfvlckubvio.supabase.co',
+  clavePublica: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0ZWFzcWZsd2hmdmxja3VidmlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3ODMxNDUsImV4cCI6MjEwODM1OTE0NX0.6Ija3XTqfW0eEK_zUFrTQtaAxyB7t0Lzd5BabrUEWXc',
+});

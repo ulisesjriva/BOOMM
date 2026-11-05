@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../tema/tema_psicobloom.dart';
+import '../../../nucleo/tema/tema_psicobloom.dart';
 
 /// Barra de navegacion inferior para las pantallas del paciente en PsicoBloom.
 /// Mantiene las cinco opciones del boceto aprobado con indicador visual
@@ -135,3 +135,4 @@ class BarraNavegacionPaciente extends StatelessWidget {
     );
   }
 }
+

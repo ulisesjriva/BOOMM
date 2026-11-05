@@ -6,19 +6,31 @@ import '../../nucleo/tema/tema_psicobloom.dart';
 import '../../nucleo/componentes/fondo_decorativo_bloom.dart';
 import '../acceso/pantalla_iniciar_sesion.dart';
 import '../../servicios/servicio_registro.dart';
+import '../../servicios/servicio_enlace_autenticacion.dart';
+import '../../modelos/enlace_autenticacion.dart';
 
 /// Pantalla que solicita al usuario abrir el enlace de confirmacion enviado a su correo.
 class PantallaVerificarCorreo extends StatefulWidget {
   final String correo;
   final bool esProfesional;
   final ServicioRegistro servicio;
+  final EnlaceAutenticacion? enlace;
 
   const PantallaVerificarCorreo({
     super.key,
     required this.correo,
     this.esProfesional = false,
     this.servicio = const ServicioRegistro(),
+    this.enlace,
   });
+
+  const PantallaVerificarCorreo.desdeEnlace({
+    super.key,
+    required EnlaceAutenticacion enlace,
+  }) : enlace = enlace,
+       correo = '',
+       esProfesional = false,
+       servicio = const ServicioRegistro();
 
   @override
   State<PantallaVerificarCorreo> createState() =>
@@ -26,6 +38,9 @@ class PantallaVerificarCorreo extends StatefulWidget {
 }
 
 class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
+  final _servicioEnlace = ServicioEnlaceAutenticacion();
+  String? _mensajeEnlace;
+  bool _confirmadoDesdeEnlace = false;
   bool _estaComprobando = false;
   bool _estaReenviando = false;
   int _segundosReenvio = 0;
@@ -34,7 +49,7 @@ class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
   @override
   void initState() {
     super.initState();
-    _iniciarEsperaReenvio();
+    if (widget.enlace == null) _iniciarEsperaReenvio();
   }
 
   void _iniciarEsperaReenvio() {
@@ -53,6 +68,7 @@ class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
   @override
   void dispose() {
     _relojReenvio?.cancel();
+    unawaited(_servicioEnlace.cerrar());
     super.dispose();
   }
 
@@ -64,8 +80,8 @@ class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
       if (!mounted) return;
       final mensaje = perfil == null
           ? 'Todavía no hay una sesión confirmada para este correo en esta aplicación. '
-                'Abre el enlace de confirmación en el mismo emulador y vuelve a comprobar. '
-                'Si lo abriste en otro dispositivo, eso no inicia la sesión aquí.'
+                'Si confirmaste desde la página web, vuelve a iniciar sesión con tu correo y contraseña. '
+                'La confirmación externa no inicia una sesión en este dispositivo.'
           : 'Supabase confirmó el correo y devolvió tu perfil real.\n\n'
                 'Nombre: ${perfil.nombre} ${perfil.apellido}\n'
                 'Rol: ${perfil.rol}\n'
@@ -131,12 +147,13 @@ class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const PantallaIniciarSesion()),
-      (ruta) => ruta.isFirst,
+      (ruta) => false,
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.enlace != null) return _construirDesdeEnlace();
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: FondoDecorativoBloom(
@@ -317,4 +334,81 @@ class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
       ),
     );
   }
+
+  Future<void> _confirmarDesdeEnlace() async {
+    if (_estaComprobando || _confirmadoDesdeEnlace) return;
+    final enlace = widget.enlace;
+    if (enlace == null || enlace.tipo != TipoEnlaceAutenticacion.confirmacion) return;
+    setState(() => _estaComprobando = true);
+    try {
+      final correo = await _servicioEnlace.confirmarCorreo(enlace);
+      if (!mounted) return;
+      setState(() {
+        _confirmadoDesdeEnlace = true;
+        _mensajeEnlace = correo.isEmpty
+            ? 'Supabase confirmó tu correo. Ya puedes iniciar sesión.'
+            : 'Supabase confirmó el correo $correo. Ya puedes iniciar sesión.';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _mensajeEnlace = ServicioEnlaceAutenticacion.explicarError(error));
+    } finally {
+      if (mounted) setState(() => _estaComprobando = false);
+    }
+  }
+
+  Widget _construirDesdeEnlace() {
+    final esValido = widget.enlace?.tipo == TipoEnlaceAutenticacion.confirmacion;
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: TemaPsicobloom.colorFondo,
+        body: FondoDecorativoBloom(
+          mostrarHojas: true,
+          child: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Icon(
+                      _confirmadoDesdeEnlace ? Icons.mark_email_read_outlined : Icons.mark_email_unread_outlined,
+                      size: 70,
+                      color: TemaPsicobloom.colorPrincipal,
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      _confirmadoDesdeEnlace ? 'Tu correo está confirmado' : esValido ? 'Confirma tu correo' : 'Enlace no válido',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _mensajeEnlace ?? (esValido
+                          ? 'Pulsa el botón para confirmar tu correo con Supabase. Después podrás iniciar sesión.'
+                          : 'Abre el enlace más reciente del correo o solicita uno nuevo desde la aplicación.'),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    if (esValido && !_confirmadoDesdeEnlace)
+                      ElevatedButton(
+                        onPressed: _estaComprobando ? null : _confirmarDesdeEnlace,
+                        child: Text(_estaComprobando ? 'Confirmando…' : 'Confirmar mi correo'),
+                      ),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: _estaComprobando ? null : _irAIniciarSesion,
+                      child: const Text('Volver a iniciar sesión'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
 }

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#6D4BC3">
+  <title>Acceso a PsicoBloom</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/estilos.css">
+  <script defer src="/assets/vendor/supabase-2.119.0.js"></script>
+  <script defer src="/assets/configuracion.js"></script>
+  <script defer src="/assets/autenticacion.js"></script>
+</head>
+<body>
+<header class="cabecera"><a class="marca" href="/"><svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M20 28C8 27 5 19 9 15c3-3 7-1 11 4 4-5 8-7 11-4 4 4 1 12-11 13Z" fill="#6D4BC3"/><path d="M20 22C10 15 13 6 20 5c7 1 10 10 0 17Z" fill="#AE94DF"/><path d="M20 29v7m0-3c4-6 9-5 11-5-1 5-6 7-11 5Z" stroke="#2F7D62" stroke-width="2.3" stroke-linecap="round"/></svg><span>PsicoBloom</span></a><span class="etiqueta">Tu camino hacia el bienestar</span></header>
+<main class="contenedor">
+  <section class="tarjeta" aria-labelledby="titulo">
+<div class="icono" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="7" width="24" height="18" rx="4"/><path d="m5 9 11 9L27 9"/></svg></div>
+    <p class="sobre">Tu cuenta, contigo</p>
+    <h1 id="titulo">Comprobando la dirección…</h1>
+    <p id="descripcion">Preparamos tu solicitud de acceso a PsicoBloom.</p>
+    <div id="estado" class="estado" role="status" aria-live="polite" hidden></div>
+    <a id="continuar-app" class="boton secundario" hidden>Continuar en la aplicación ↗</a>
+    <button id="verificar" class="boton" type="button" hidden>Continuar</button>
+    <form id="formulario-clave" hidden>
+      <label for="nueva-clave">Nueva contraseña</label>
+      <input id="nueva-clave" type="password" autocomplete="new-password" minlength="11" required>
+      <p class="requisitos">Al menos 11 caracteres, con mayúscula, minúscula, número y símbolo.</p>
+      <label for="confirmar-clave">Confirmar contraseña</label>
+      <input id="confirmar-clave" type="password" autocomplete="new-password" minlength="11" required>
+      <button id="guardar" class="boton" type="submit">Guardar contraseña</button>
+    </form>
+    <a id="abrir-app" class="boton secundario" href="psicobloom://acceso/" hidden>Abrir PsicoBloom ↗</a>
+    <div class="aviso" id="ayuda-app" hidden><strong>¿La aplicación no se abre?</strong><p>Abre PsicoBloom desde su icono en el dispositivo donde está instalada. Este botón no instala la aplicación.</p></div>
+    <details class="ayuda"><summary>Estoy usando otro dispositivo</summary><p>Puedes confirmar el correo o cambiar la contraseña aquí. Después inicia sesión en PsicoBloom en el dispositivo donde tienes instalada la aplicación. Esta página no traslada tu sesión a otro dispositivo.</p></details>
+    <p class="ayuda">Si el enlace venció o ya lo utilizaste, solicita uno nuevo desde la aplicación. Una vez validado, termina el proceso sin recargar esta página.</p>
+    <noscript>Activa JavaScript para validar el enlace. Sin él, no se confirma el correo ni se cambia la contraseña.</noscript>
+  </section>
+<footer class="pie">PsicoBloom · Riobamba<span>Tu camino hacia el bienestar comienza con una conexión.</span></footer></main>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../tema/tema_psicobloom.dart';
-import '../modelos/profesional.dart';
+import '../../../nucleo/tema/tema_psicobloom.dart';
+import '../../../modelos/profesional.dart';
 
 /// Tarjeta reutilizable que presenta la informacion clave de un profesional
 /// de la salud mental en las pantallas de Inicio y Buscar profesionales.
@@ -275,3 +275,4 @@ class TarjetaProfesional extends StatelessWidget {
     return 'PB';
   }
 }
+
