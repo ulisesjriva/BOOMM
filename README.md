@@ -1,17 +1,50 @@
-# boom
+# PsicoBloom
 
-A new Flutter project.
+Aplicación Flutter del proyecto de Computación Móvil e Interoperabilidad de Plataformas. El código se organiza mediante MVC por módulos, con servicios y repositorios de apoyo.
 
-## Getting Started
+El nombre del producto es **PsicoBloom**. El paquete Dart conserva el nombre técnico `boom` y la carpeta local puede llamarse `BOOMM`; esta reorganización no los renombra.
 
-This project is a starting point for a Flutter application.
+## Estructura y estado
 
-A few resources to get you started if this is your first Flutter project:
+Consultar [Organización del código y responsabilidades MVC](documentacion/arquitectura_mvc.md).
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- `lib/modulos/autenticacion/`: acceso, registro, recuperación, confirmación y coordinación de enlaces.
+- `lib/modulos/paciente/`: inicio, búsqueda, componentes y favoritos.
+- `lib/nucleo/`: componentes y tema compartidos.
+- `lib/modelos/`, `lib/repositorios/`, `lib/datos/`: modelos, consultas y datos de demostración compartidos.
+- `web_autenticacion/`: sitio auxiliar de autenticación publicado mediante Firebase Hosting.
+- `test/`: verificaciones de coordinación y widgets con dependencias simuladas.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+En el commit base `4b3b059`, la desarrolladora informó `flutter analyze` sin incidencias y 83 pruebas aprobadas. Las pruebas reales finales de autenticación se registran como pendientes en la documentación; una prueba simulada no equivale a una confirmación de correo real.
+
+## Verificar el proyecto
+
+Ejecutar desde la carpeta que contiene `pubspec.yaml`:
+
+```powershell
+flutter pub get
+flutter analyze
+flutter test
+```
+
+## Ejecutar la aplicación principal
+
+La configuración se lee mediante `SUPABASE_URL` y `SUPABASE_ANON_KEY`, usando `--dart-define`. En PowerShell, introducir los valores del proyecto y consultar los dispositivos:
+
+```powershell
+$urlSupabase = Read-Host "Pega la URL de Supabase"
+$clavePublicaSupabase = Read-Host "Pega la clave publica de Supabase"
+flutter devices
+$dispositivo = Read-Host "Escribe el identificador del dispositivo Android mostrado"
+flutter run -d $dispositivo -t lib/main.dart --dart-define="SUPABASE_URL=$urlSupabase" --dart-define="SUPABASE_ANON_KEY=$clavePublicaSupabase"
+```
+
+Si no aparece ningún dispositivo Android, abrir primero un emulador o conectar el dispositivo. Utilizar valores públicos del cliente, nunca claves administrativas. No guardar contraseñas de usuarios en archivos de ejecución o en el repositorio.
+
+`lib/main_desarrollo.dart` es una entrada independiente para previsualizar el paciente con datos simulados. No sustituye a `lib/main.dart` para comprobar Auth o los enlaces del correo.
+
+## Trabajo por etapas
+
+Seguir `AGENTS.md`. Actualizar rutas, importaciones y pruebas en el mismo cambio. Formatear los archivos modificados y ejecutar análisis y pruebas antes del commit. Revisar `git status` y trabajar en la rama acordada por el equipo; los cambios de reorganización están en `refactor/estructura-mvc`.
+
+La reorganización del cliente Flutter no requiere por sí sola desplegar de nuevo el sitio `web_autenticacion`. Los cambios en el sitio se revisan y despliegan por separado.
