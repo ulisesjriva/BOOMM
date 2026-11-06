@@ -6,16 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'configuracion/configuracion_supabase.dart';
-
-import 'package:boom/modulos/autenticacion/modelos/enlace_autenticacion.dart';
-
+import 'modulos/autenticacion/modelos/enlace_autenticacion.dart';
+import 'modulos/autenticacion/controladores/controlador_enlaces_autenticacion.dart';
 import 'nucleo/tema/tema_psicobloom.dart';
-
-import 'package:boom/modulos/autenticacion/vistas/pantalla_carga.dart';
-import 'package:boom/modulos/autenticacion/vistas/pantalla_iniciar_sesion.dart';
-import 'package:boom/modulos/autenticacion/vistas/pantalla_nueva_clave.dart';
-import 'package:boom/modulos/autenticacion/vistas/pantalla_opciones_acceso.dart';
-import 'package:boom/modulos/autenticacion/vistas/pantalla_verificar_correo.dart';
+import 'modulos/autenticacion/vistas/pantalla_carga.dart';
+import 'modulos/autenticacion/vistas/pantalla_iniciar_sesion.dart';
+import 'modulos/autenticacion/vistas/pantalla_nueva_clave.dart';
+import 'modulos/autenticacion/vistas/pantalla_opciones_acceso.dart';
+import 'modulos/autenticacion/vistas/pantalla_verificar_correo.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,16 +73,12 @@ class AplicacionPsicoBloom extends StatefulWidget {
 class _AplicacionPsicoBloomState extends State<AplicacionPsicoBloom> {
   final _navegador = GlobalKey<NavigatorState>();
   final _mensajero = GlobalKey<ScaffoldMessengerState>();
-  StreamSubscription<Uri>? _suscripcion;
-  EnlaceAutenticacion? _pendiente;
-  String? _identidadActiva;
-  String? _ultimaIdentidad;
-  DateTime? _horaUltimoEnlace;
-  bool _arranqueListo = false;
+  final _controladorEnlaces = ControladorEnlacesAutenticacion();
 
   @override
   void initState() {
     super.initState();
+    _controladorEnlaces.addListener(_atenderCambiosDeEnlaces);
     if (widget.flujoEnlaces != null ||
         widget.obtenerEnlaceInicial != null ||
         (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)) {
@@ -101,68 +95,36 @@ class _AplicacionPsicoBloomState extends State<AplicacionPsicoBloom> {
           widget.flujoEnlaces ??
           enlaces?.uriLinkStream ??
           const Stream<Uri>.empty();
-      _suscripcion = flujo.listen(
-        _recibirEnlace,
-        onError: (Object error, StackTrace pila) => _avisarErrorEnlace(),
+      await _controladorEnlaces.escuchar(
+        flujo: flujo,
+        obtenerInicial: widget.obtenerEnlaceInicial ?? enlaces?.getInitialLink,
       );
-      final obtenerInicial = widget.obtenerEnlaceInicial;
-      final Uri? inicial;
-      if (obtenerInicial != null) {
-        inicial = await obtenerInicial();
-      } else {
-        inicial = await enlaces?.getInitialLink();
-      }
-      if (mounted && inicial != null) _recibirEnlace(inicial);
     } catch (_) {
-      if (mounted) _avisarErrorEnlace();
+      _controladorEnlaces.avisarErrorEscucha();
     }
   }
 
-  void _avisarErrorEnlace() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _mensajero.currentState?.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No se pudo abrir el enlace. Intentalo de nuevo desde tu correo.',
-          ),
-        ),
-      );
-    });
-  }
-
-  void _recibirEnlace(Uri uri) {
-    if (!mounted) return;
-    final enlace = EnlaceAutenticacion.desdeUri(uri);
-    if (enlace == null) return;
-    final ahora = DateTime.now();
-    final identidad = enlace.identidadEnMemoria;
-    if (identidad == _identidadActiva ||
-        (identidad == _ultimaIdentidad &&
-            _horaUltimoEnlace != null &&
-            ahora.difference(_horaUltimoEnlace!) <
-                const Duration(seconds: 2))) {
+  void _atenderCambiosDeEnlaces() {
+    if (!mounted) {
       return;
     }
-    _ultimaIdentidad = identidad;
-    _horaUltimoEnlace = ahora;
-    _pendiente = enlace;
-    if (_identidadActiva != null) {
-      _mensajero.currentState?.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Recibiste otro enlace. Termina o cierra el proceso actual para continuar.',
-          ),
-        ),
-      );
+    final aviso = _controladorEnlaces.tomarAviso();
+    if (aviso != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        _mensajero.currentState?.showSnackBar(SnackBar(content: Text(aviso)));
+      });
     }
     _abrirPendiente();
   }
 
   void _finalizarArranque() {
-    if (!mounted) return;
-    _arranqueListo = true;
-    if (_pendiente != null) {
+    if (!mounted) {
+      return;
+    }
+    if (_controladorEnlaces.finalizarArranque()) {
       _abrirPendiente();
     } else {
       _navegador.currentState?.pushReplacement<void, void>(
@@ -173,14 +135,13 @@ class _AplicacionPsicoBloomState extends State<AplicacionPsicoBloom> {
 
   void _abrirPendiente() {
     final navegador = _navegador.currentState;
-    final enlace = _pendiente;
-    if (!_arranqueListo ||
-        _identidadActiva != null ||
-        navegador == null ||
-        enlace == null)
+    if (navegador == null) {
       return;
-    _pendiente = null;
-    _identidadActiva = enlace.identidadEnMemoria;
+    }
+    final enlace = _controladorEnlaces.tomarEnlacePendiente();
+    if (enlace == null) {
+      return;
+    }
     final Widget pantalla = switch (enlace.tipo) {
       TipoEnlaceAutenticacion.recuperacion => PantallaNuevaClave(
         enlace: enlace,
@@ -194,8 +155,10 @@ class _AplicacionPsicoBloomState extends State<AplicacionPsicoBloom> {
     );
     unawaited(
       cierre.whenComplete(() {
-        _identidadActiva = null;
-        if (!mounted) return;
+        _controladorEnlaces.finalizarProcesoActual();
+        if (!mounted) {
+          return;
+        }
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _abrirPendiente();
         });
@@ -205,10 +168,8 @@ class _AplicacionPsicoBloomState extends State<AplicacionPsicoBloom> {
 
   @override
   void dispose() {
-    unawaited(_suscripcion?.cancel());
-    _pendiente = null;
-    _identidadActiva = null;
-    _ultimaIdentidad = null;
+    _controladorEnlaces.removeListener(_atenderCambiosDeEnlaces);
+    _controladorEnlaces.dispose();
     super.dispose();
   }
 
