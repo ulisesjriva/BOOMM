@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
 import 'package:boom/modulos/autenticacion/servicios/servicio_recuperacion_clave.dart';
+import 'package:boom/modulos/autenticacion/controladores/controlador_recuperar_clave.dart';
 
 /// Pantalla para solicitar el enlace de recuperacion de contrasena mediante correo,
 /// con la estetica visual completa y lienzo vectorial nativo.
 class PantallaRecuperarClave extends StatefulWidget {
-  const PantallaRecuperarClave({super.key});
+  const PantallaRecuperarClave({
+    super.key,
+    this.servicio = const ServicioRecuperacionClave(),
+  });
+
+  final ServicioRecuperacionClave servicio;
 
   @override
   State<PantallaRecuperarClave> createState() => _PantallaRecuperarClaveState();
@@ -15,11 +21,28 @@ class PantallaRecuperarClave extends StatefulWidget {
 class _PantallaRecuperarClaveState extends State<PantallaRecuperarClave> {
   final _claveFormulario = GlobalKey<FormState>();
   final _controladorCorreo = TextEditingController();
-  final _servicio = const ServicioRecuperacionClave();
-  bool _estaEnviando = false;
+  late final ControladorRecuperarClave _controlador;
+  bool _mostrandoConfirmacion = false;
+
+  bool get _estaEnviando => _controlador.estaEnviando || _mostrandoConfirmacion;
+
+  @override
+  void initState() {
+    super.initState();
+    _controlador = ControladorRecuperarClave(servicio: widget.servicio);
+    _controlador.addListener(_actualizarVista);
+  }
+
+  void _actualizarVista() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   @override
   void dispose() {
+    _controlador.removeListener(_actualizarVista);
+    _controlador.dispose();
     _controladorCorreo.dispose();
     super.dispose();
   }
@@ -31,10 +54,22 @@ class _PantallaRecuperarClaveState extends State<PantallaRecuperarClave> {
     }
     final correo = _controladorCorreo.text.trim();
     FocusScope.of(context).unfocus();
-    setState(() => _estaEnviando = true);
+    final aceptada = await _controlador.solicitarEnlace(correo);
+    if (!mounted) return;
+
+    if (!aceptada) {
+      final mensaje = _controlador.mensajeError;
+      if (mensaje == null) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mensaje), duration: const Duration(seconds: 6)),
+      );
+      return;
+    }
+
+    // El bloqueo durante el dialogo es un estado de presentacion de la vista.
+    setState(() => _mostrandoConfirmacion = true);
     try {
-      await _servicio.solicitarEnlace(correo);
-      if (!mounted) return;
       await showDialog<void>(
         context: context,
         builder: (contextoDialogo) => AlertDialog(
@@ -64,17 +99,10 @@ class _PantallaRecuperarClaveState extends State<PantallaRecuperarClave> {
           ],
         ),
       );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(ServicioRecuperacionClave.explicarError(error)),
-          duration: const Duration(seconds: 6),
-        ),
-      );
     } finally {
-      if (mounted) setState(() => _estaEnviando = false);
+      if (mounted) {
+        setState(() => _mostrandoConfirmacion = false);
+      }
     }
   }
 
