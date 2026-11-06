@@ -1,10 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
 import 'package:boom/modulos/autenticacion/modelos/enlace_autenticacion.dart';
 import 'package:boom/modulos/autenticacion/servicios/servicio_enlace_autenticacion.dart';
+import 'package:boom/modulos/autenticacion/controladores/controlador_nueva_clave.dart';
 import 'package:boom/modulos/autenticacion/vistas/pantalla_iniciar_sesion.dart';
 
 /// Pantalla para establecer y confirmar la nueva contrasena tras abrir el enlace de recuperacion,
@@ -12,7 +11,9 @@ import 'package:boom/modulos/autenticacion/vistas/pantalla_iniciar_sesion.dart';
 class PantallaNuevaClave extends StatefulWidget {
   final EnlaceAutenticacion? enlace;
 
-  const PantallaNuevaClave({super.key, this.enlace});
+  const PantallaNuevaClave({super.key, this.enlace, this.servicio});
+
+  final ServicioEnlaceAutenticacion? servicio;
 
   @override
   State<PantallaNuevaClave> createState() => _PantallaNuevaClaveState();
@@ -23,23 +24,39 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
   final _controladorNuevaClave = TextEditingController();
   final _controladorConfirmarClave = TextEditingController();
 
-  final _servicioEnlace = ServicioEnlaceAutenticacion();
-  bool _enlaceValidado = false;
-  bool _estaValidando = false;
-  String? _mensajeEnlace;
+  late final ControladorNuevaClave _controlador;
   bool _mostrarNuevaClave = false;
   bool _mostrarConfirmarClave = false;
-  bool _estaGuardando = false;
+  bool _mostrandoConfirmacion = false;
+
+  bool get _enlaceValidado => _controlador.enlaceValidado;
+  bool get _estaValidando => _controlador.estaValidando;
+  bool get _estaGuardando =>
+      _controlador.estaGuardando || _mostrandoConfirmacion;
+  String? get _mensajeEnlace => _controlador.mensajeEnlace;
+  bool get _ocupado => _controlador.ocupado || _mostrandoConfirmacion;
+
+  @override
+  void initState() {
+    super.initState();
+    _controlador = ControladorNuevaClave(servicio: widget.servicio);
+    _controlador.addListener(_actualizarVista);
+  }
+
+  void _actualizarVista() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   @override
   void dispose() {
+    _controlador.removeListener(_actualizarVista);
+    _controlador.dispose();
     _controladorNuevaClave.dispose();
     _controladorConfirmarClave.dispose();
-    unawaited(_servicioEnlace.cerrar());
     super.dispose();
   }
-
-  bool get _ocupado => _estaGuardando || _estaValidando;
 
   void _irAlLogin() {
     Navigator.of(context).pushAndRemoveUntil<void>(
@@ -49,48 +66,25 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
   }
 
   Future<void> _validarEnlace() async {
-    if (_ocupado || _enlaceValidado) return;
-    final enlace = widget.enlace;
-    if (enlace == null || enlace.tipo != TipoEnlaceAutenticacion.recuperacion) {
-      setState(
-        () => _mensajeEnlace =
-            'Abre un enlace de recuperación válido desde tu correo.',
-      );
-      return;
-    }
-    setState(() => _estaValidando = true);
-    try {
-      await _servicioEnlace.validarRecuperacion(enlace);
-      if (!mounted) return;
-      setState(() {
-        _enlaceValidado = true;
-        _mensajeEnlace =
-            'Enlace validado. Ya puedes crear una contraseña nueva.';
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(
-        () => _mensajeEnlace = ServicioEnlaceAutenticacion.explicarError(error),
-      );
-    } finally {
-      if (mounted) setState(() => _estaValidando = false);
-    }
+    if (_ocupado) return;
+    await _controlador.validarEnlace(widget.enlace);
   }
 
   Future<void> _guardarNuevaContrasena() async {
     if (_ocupado ||
         !_enlaceValidado ||
-        !(_claveFormulario.currentState?.validate() ?? false))
+        !(_claveFormulario.currentState?.validate() ?? false)) {
       return;
-    final clave = _controladorNuevaClave.text;
+    }
     FocusScope.of(context).unfocus();
-    setState(() => _estaGuardando = true);
+    final guardada = await _controlador.guardarClave(
+      _controladorNuevaClave.text,
+    );
+    if (!mounted || !guardada) return;
+    _controladorNuevaClave.clear();
+    _controladorConfirmarClave.clear();
+    setState(() => _mostrandoConfirmacion = true);
     try {
-      await _servicioEnlace.guardarClave(clave);
-      if (!mounted) return;
-      _controladorNuevaClave.clear();
-      _controladorConfirmarClave.clear();
-      setState(() => _enlaceValidado = false);
       await showDialog<void>(
         context: context,
         barrierDismissible: false,
@@ -114,13 +108,10 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
         ),
       );
       if (mounted) _irAlLogin();
-    } catch (error) {
-      if (!mounted) return;
-      setState(
-        () => _mensajeEnlace = ServicioEnlaceAutenticacion.explicarError(error),
-      );
     } finally {
-      if (mounted) setState(() => _estaGuardando = false);
+      if (mounted) {
+        setState(() => _mostrandoConfirmacion = false);
+      }
     }
   }
 
@@ -267,7 +258,7 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
                                     : 'Mostrar contraseña',
                               ),
                             ),
-                            validator: ServicioEnlaceAutenticacion.validarClave,
+                            validator: ControladorNuevaClave.validarClave,
                           ),
                           const SizedBox(height: 4),
                           const Padding(
