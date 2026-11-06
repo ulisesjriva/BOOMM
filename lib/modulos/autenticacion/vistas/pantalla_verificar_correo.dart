@@ -1,6 +1,5 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:boom/modulos/autenticacion/controladores/controlador_verificar_correo.dart';
 
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
@@ -15,6 +14,7 @@ class PantallaVerificarCorreo extends StatefulWidget {
   final bool esProfesional;
   final ServicioRegistro servicio;
   final EnlaceAutenticacion? enlace;
+  final ServicioEnlaceAutenticacion? servicioEnlace;
 
   const PantallaVerificarCorreo({
     super.key,
@@ -22,11 +22,13 @@ class PantallaVerificarCorreo extends StatefulWidget {
     this.esProfesional = false,
     this.servicio = const ServicioRegistro(),
     this.enlace,
+    this.servicioEnlace,
   });
 
   const PantallaVerificarCorreo.desdeEnlace({
     super.key,
     required EnlaceAutenticacion enlace,
+    this.servicioEnlace,
   }) : enlace = enlace,
        correo = '',
        esProfesional = false,
@@ -38,94 +40,95 @@ class PantallaVerificarCorreo extends StatefulWidget {
 }
 
 class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
-  final _servicioEnlace = ServicioEnlaceAutenticacion();
-  String? _mensajeEnlace;
-  bool _confirmadoDesdeEnlace = false;
-  bool _estaComprobando = false;
-  bool _estaReenviando = false;
-  int _segundosReenvio = 0;
-  Timer? _relojReenvio;
+  late final ControladorVerificarCorreo _controlador;
+
+  String? get _mensajeEnlace => _controlador.mensajeEnlace;
+  bool get _confirmadoDesdeEnlace => _controlador.confirmadoDesdeEnlace;
+  bool get _estaComprobando => _controlador.estaComprobando;
+  bool get _estaReenviando => _controlador.estaReenviando;
+  int get _segundosReenvio => _controlador.segundosReenvio;
 
   @override
   void initState() {
     super.initState();
-    if (widget.enlace == null) _iniciarEsperaReenvio();
+    _controlador = ControladorVerificarCorreo(
+      servicio: widget.servicio,
+      servicioEnlace: widget.servicioEnlace,
+      iniciarEspera: widget.enlace == null,
+    );
+    _controlador.addListener(_actualizarVista);
   }
 
-  void _iniciarEsperaReenvio() {
-    _relojReenvio?.cancel();
-    _segundosReenvio = 60;
-    _relojReenvio = Timer.periodic(const Duration(seconds: 1), (reloj) {
-      if (!mounted) {
-        reloj.cancel();
-        return;
-      }
-      setState(() => _segundosReenvio--);
-      if (_segundosReenvio <= 0) reloj.cancel();
-    });
+  void _actualizarVista() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
-    _relojReenvio?.cancel();
-    unawaited(_servicioEnlace.cerrar());
+    _controlador.removeListener(_actualizarVista);
+    _controlador.dispose();
     super.dispose();
   }
 
+  void _mostrarError(String mensaje) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(mensaje)));
+  }
+
   Future<void> _comprobarVerificacion() async {
-    if (_estaComprobando || _estaReenviando) return;
-    setState(() => _estaComprobando = true);
-    try {
-      final perfil = await widget.servicio.comprobarConfirmacion(widget.correo);
-      if (!mounted) return;
-      final mensaje = perfil == null
-          ? 'Todavía no hay una sesión confirmada para este correo en esta aplicación. '
-                'Si confirmaste desde la página web, vuelve a iniciar sesión con tu correo y contraseña. '
-                'La confirmación externa no inicia una sesión en este dispositivo.'
-          : 'Supabase confirmó el correo y devolvió tu perfil real.\n\n'
-                'Nombre: ${perfil.nombre} ${perfil.apellido}\n'
-                'Rol: ${perfil.rol}\n'
-                'Estado de la cuenta: ${perfil.cuentaActiva ? "activa" : "desactivada"}\n'
-                'Aprobación: ${perfil.aprobacion}';
-      setState(() => _estaComprobando = false);
-      await showDialog<void>(
-        context: context,
-        builder: (contextoDialogo) => AlertDialog(
-          backgroundColor: TemaPsicobloom.colorSuperficie,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          title: Text(
-            perfil == null
-                ? 'Confirmación pendiente en esta aplicación'
-                : 'Correo y perfil comprobados',
-          ),
-          content: Text(mensaje),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(contextoDialogo),
-              child: const Text('Entendido'),
-            ),
-          ],
-        ),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(ServicioRegistro.explicarError(error))),
-      );
-    } finally {
-      if (mounted) setState(() => _estaComprobando = false);
+    if (_estaComprobando || _estaReenviando) {
+      return;
     }
+    final perfil = await _controlador.comprobarConfirmacion(widget.correo);
+    if (!mounted) {
+      return;
+    }
+    final error = _controlador.mensajeError;
+    if (error != null) {
+      _mostrarError(error);
+      return;
+    }
+    final mensaje = perfil == null
+        ? 'Todavía no hay una sesión confirmada para este correo en esta aplicación. '
+              'Si confirmaste desde la página web, vuelve a iniciar sesión con tu correo y contraseña. '
+              'La confirmación externa no inicia una sesión en este dispositivo.'
+        : 'Supabase confirmó el correo y devolvió tu perfil real.\n\n'
+              'Nombre: ${perfil.nombre} ${perfil.apellido}\n'
+              'Rol: ${perfil.rol}\n'
+              'Estado de la cuenta: ${perfil.cuentaActiva ? "activa" : "desactivada"}\n'
+              'Aprobación: ${perfil.aprobacion}';
+    await showDialog<void>(
+      context: context,
+      builder: (contextoDialogo) => AlertDialog(
+        backgroundColor: TemaPsicobloom.colorSuperficie,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text(
+          perfil == null
+              ? 'Confirmación pendiente en esta aplicación'
+              : 'Correo y perfil comprobados',
+        ),
+        content: Text(mensaje),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(contextoDialogo),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _reenviarEnlace() async {
-    if (_estaReenviando || _estaComprobando || _segundosReenvio > 0) return;
-    setState(() => _estaReenviando = true);
-    try {
-      await widget.servicio.reenviarEnlace(widget.correo);
-      if (!mounted) return;
-      setState(_iniciarEsperaReenvio);
+    if (_estaReenviando || _estaComprobando || _segundosReenvio > 0) {
+      return;
+    }
+    final aceptado = await _controlador.reenviarEnlace(widget.correo);
+    if (!mounted) {
+      return;
+    }
+    if (aceptado) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -133,13 +136,11 @@ class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
           ),
         ),
       );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(ServicioRegistro.explicarError(error))),
-      );
-    } finally {
-      if (mounted) setState(() => _estaReenviando = false);
+    } else {
+      final error = _controlador.mensajeError;
+      if (error != null) {
+        _mostrarError(error);
+      }
     }
   }
 
@@ -336,28 +337,7 @@ class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
   }
 
   Future<void> _confirmarDesdeEnlace() async {
-    if (_estaComprobando || _confirmadoDesdeEnlace) return;
-    final enlace = widget.enlace;
-    if (enlace == null || enlace.tipo != TipoEnlaceAutenticacion.confirmacion)
-      return;
-    setState(() => _estaComprobando = true);
-    try {
-      final correo = await _servicioEnlace.confirmarCorreo(enlace);
-      if (!mounted) return;
-      setState(() {
-        _confirmadoDesdeEnlace = true;
-        _mensajeEnlace = correo.isEmpty
-            ? 'Supabase confirmó tu correo. Ya puedes iniciar sesión.'
-            : 'Supabase confirmó el correo $correo. Ya puedes iniciar sesión.';
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(
-        () => _mensajeEnlace = ServicioEnlaceAutenticacion.explicarError(error),
-      );
-    } finally {
-      if (mounted) setState(() => _estaComprobando = false);
-    }
+    await _controlador.confirmarEnlace(widget.enlace);
   }
 
   Widget _construirDesdeEnlace() {
