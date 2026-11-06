@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-
+import 'package:boom/modulos/autenticacion/controladores/controlador_inicio_sesion.dart';
 import 'package:boom/modulos/autenticacion/servicios/servicio_inicio_sesion.dart';
-
 import 'package:boom/modulos/paciente/vistas/pantalla_inicio_paciente.dart';
-
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
 import 'package:boom/nucleo/componentes/icono_google.dart';
@@ -14,7 +12,12 @@ import 'package:boom/modulos/autenticacion/vistas/pantalla_completar_perfil.dart
 /// Inicio de sesion real con correo y clave, conservando la identidad visual.
 /// El boton Google conserva la previsualizacion existente; aun no autentica.
 class PantallaIniciarSesion extends StatefulWidget {
-  const PantallaIniciarSesion({super.key});
+  const PantallaIniciarSesion({
+    super.key,
+    this.servicio = const ServicioInicioSesion(),
+  });
+
+  final ServicioInicioSesion servicio;
 
   @override
   State<PantallaIniciarSesion> createState() => _PantallaIniciarSesionState();
@@ -25,13 +28,30 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
   final _controladorCorreo = TextEditingController();
   final _controladorClave = TextEditingController();
 
-  final _servicioInicioSesion = const ServicioInicioSesion();
+  late final ControladorInicioSesion _controladorInicioSesion;
 
   bool _mostrarClave = false;
-  bool _estaCargando = false;
+  bool get _estaCargando => _controladorInicioSesion.estaCargando;
+
+  @override
+  void initState() {
+    super.initState();
+    _controladorInicioSesion = ControladorInicioSesion(
+      servicio: widget.servicio,
+    );
+    _controladorInicioSesion.addListener(_actualizarVista);
+  }
+
+  void _actualizarVista() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   @override
   void dispose() {
+    _controladorInicioSesion.removeListener(_actualizarVista);
+    _controladorInicioSesion.dispose();
     _controladorCorreo.dispose();
     _controladorClave.dispose();
     super.dispose();
@@ -42,30 +62,16 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
         !(_claveFormulario.currentState?.validate() ?? false)) {
       return;
     }
-    final correo = _controladorCorreo.text.trim();
-    final clave = _controladorClave.text;
     FocusScope.of(context).unfocus();
-    setState(() => _estaCargando = true);
+    final perfil = await _controladorInicioSesion.iniciarSesion(
+      correo: _controladorCorreo.text,
+      clave: _controladorClave.text,
+    );
+    if (!mounted) return;
 
-    try {
-      final perfil = await _servicioInicioSesion.iniciarSesionPaciente(
-        correo: correo,
-        clave: clave,
-      );
-      if (!mounted) return;
-      _controladorClave.clear();
-      Navigator.of(context).pushAndRemoveUntil<void>(
-        MaterialPageRoute<void>(
-          builder: (context) => PantallaInicioPaciente(
-            nombrePaciente: perfil.nombre.trim().isEmpty
-                ? 'Paciente'
-                : perfil.nombre.trim(),
-          ),
-        ),
-        (ruta) => false,
-      );
-    } catch (error) {
-      if (!mounted) return;
+    if (perfil == null) {
+      final mensaje = _controladorInicioSesion.mensajeError;
+      if (mensaje == null) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -75,15 +81,26 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
             borderRadius: BorderRadius.circular(12),
           ),
           content: Text(
-            ServicioInicioSesion.explicarError(error),
+            mensaje,
             style: const TextStyle(color: Colors.white, fontSize: 13),
           ),
           duration: const Duration(seconds: 6),
         ),
       );
-    } finally {
-      if (mounted) setState(() => _estaCargando = false);
+      return;
     }
+
+    _controladorClave.clear();
+    Navigator.of(context).pushAndRemoveUntil<void>(
+      MaterialPageRoute<void>(
+        builder: (context) => PantallaInicioPaciente(
+          nombrePaciente: perfil.nombre.trim().isEmpty
+              ? 'Paciente'
+              : perfil.nombre.trim(),
+        ),
+      ),
+      (ruta) => false,
+    );
   }
 
   void _continuarConGoogle() {
