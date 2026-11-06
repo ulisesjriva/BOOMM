@@ -4,6 +4,7 @@ import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
 import 'package:boom/modulos/autenticacion/vistas/pantalla_verificar_correo.dart';
 import 'package:boom/modulos/autenticacion/servicios/servicio_registro.dart';
+import 'package:boom/modulos/autenticacion/controladores/controlador_registro.dart';
 
 /// Enum que define los dos unicos tipos de usuario disponibles en el registro publico.
 enum TipoUsuario { paciente, profesional }
@@ -37,70 +38,82 @@ class _PantallaRegistroPasoDosState extends State<PantallaRegistroPasoDos> {
   bool _mostrarClave = false;
   bool _mostrarConfirmarClave = false;
   bool _aceptaTerminos = false;
-  bool _estaRegistrando = false;
+  late final ControladorRegistro _controlador;
+
+  bool get _estaRegistrando => _controlador.estaRegistrando;
+
+  @override
+  void initState() {
+    super.initState();
+    _controlador = ControladorRegistro(servicio: widget.servicio);
+    _controlador.addListener(_actualizarVista);
+  }
+
+  void _actualizarVista() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   @override
   void dispose() {
+    _controlador.removeListener(_actualizarVista);
+    _controlador.dispose();
     _controladorClave.dispose();
     _controladorConfirmarClave.dispose();
     super.dispose();
   }
 
   Future<void> _finalizarRegistro() async {
-    if (_estaRegistrando) return;
-    if (!_claveFormulario.currentState!.validate()) {
+    if (_estaRegistrando || _controlador.registroAceptado) {
       return;
     }
-
-    if (!_aceptaTerminos) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: TemaPsicobloom.colorAdvertencia,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          content: const Text(
-            'Debes aceptar los términos y condiciones para continuar.',
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
-      );
+    if (!(_claveFormulario.currentState?.validate() ?? false)) {
       return;
     }
-
-    setState(() {
-      _estaRegistrando = true;
-    });
 
     final esProfesional = _tipoUsuario == TipoUsuario.profesional;
-    try {
-      await widget.servicio.registrar(
-        nombre: widget.nombre,
-        apellido: widget.apellido,
-        correo: widget.correo,
-        clave: _controladorClave.text,
-        esProfesional: esProfesional,
-      );
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute<void>(
-          builder: (context) => PantallaVerificarCorreo(
-            correo: widget.correo,
-            esProfesional: esProfesional,
-            servicio: widget.servicio,
-          ),
-        ),
-      );
-    } catch (error) {
-      if (!mounted) return;
+    final aceptado = await _controlador.registrar(
+      nombre: widget.nombre,
+      apellido: widget.apellido,
+      correo: widget.correo,
+      clave: _controladorClave.text,
+      esProfesional: esProfesional,
+      aceptaTerminos: _aceptaTerminos,
+    );
+    if (!mounted) return;
+
+    if (!aceptado) {
+      final mensaje = _controlador.mensajeError;
+      if (mensaje == null) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(ServicioRegistro.explicarError(error))),
+        !_aceptaTerminos
+            ? SnackBar(
+                backgroundColor: TemaPsicobloom.colorAdvertencia,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                content: Text(
+                  mensaje,
+                  style: const TextStyle(color: Colors.white),
+                ),
+              )
+            : SnackBar(content: Text(mensaje)),
       );
-    } finally {
-      if (mounted) setState(() => _estaRegistrando = false);
+      return;
     }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => PantallaVerificarCorreo(
+          correo: widget.correo,
+          esProfesional: esProfesional,
+          servicio: widget.servicio,
+        ),
+      ),
+    );
   }
 
   @override
