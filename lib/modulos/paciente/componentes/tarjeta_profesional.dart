@@ -275,4 +275,3 @@ class TarjetaProfesional extends StatelessWidget {
     return 'PB';
   }
 }
-

@@ -202,7 +202,7 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
                                 boxShadow: [
                                   BoxShadow(
                                     color: TemaPsicobloom.colorPrincipal
-                                        .withOpacity(0.12),
+                                        .withValues(alpha: 0.12),
                                     blurRadius: 18,
                                     offset: const Offset(0, 6),
                                   ),

@@ -11,9 +11,7 @@ class IconoGoogle extends StatelessWidget {
     return SizedBox(
       width: tamano,
       height: tamano,
-      child: CustomPaint(
-        painter: _PintorLogoGoogle(),
-      ),
+      child: CustomPaint(painter: _PintorLogoGoogle()),
     );
   }
 }
@@ -71,4 +69,3 @@ class _PintorLogoGoogle extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

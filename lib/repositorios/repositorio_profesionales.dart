@@ -23,4 +23,3 @@ abstract class RepositorioProfesionales {
   /// Obtiene los periodos de disponibilidad disponibles para filtrar.
   Future<List<String>> obtenerDisponibilidades();
 }
-

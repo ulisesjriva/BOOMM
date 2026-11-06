@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 /// Define el tema visual y la paleta de colores normalizada para PsicoBloom.
 class TemaPsicobloom {
@@ -42,7 +42,8 @@ class TemaPsicobloom {
       useMaterial3: true,
       colorScheme: esquemaColores,
       scaffoldBackgroundColor: colorFondo,
-      fontFamily: null, // Usa la fuente estandar del sistema para mantener ligereza
+      fontFamily:
+          null, // Usa la fuente estandar del sistema para mantener ligereza
       appBarTheme: const AppBarTheme(
         backgroundColor: colorFondo,
         elevation: 0,
@@ -66,10 +67,7 @@ class TemaPsicobloom {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -81,25 +79,22 @@ class TemaPsicobloom {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: colorPrincipal,
-          textStyle: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: colorSuperficie,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         hintStyle: const TextStyle(color: colorTextoSecundario, fontSize: 15),
         labelStyle: const TextStyle(color: colorTextoSecundario, fontSize: 15),
         prefixIconColor: colorTextoSecundario,

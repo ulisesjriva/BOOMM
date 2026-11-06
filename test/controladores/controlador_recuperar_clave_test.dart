@@ -60,8 +60,9 @@ void main() {
     var debeFallar = true;
     final controlador = ControladorRecuperarClave(
       servicio: ServicioRecuperacionPrueba((correo) async {
-        if (debeFallar)
+        if (debeFallar) {
           throw const ErrorRecuperacionClave('Solicitud no disponible');
+        }
       }),
     );
     addTearDown(controlador.dispose);

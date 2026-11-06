@@ -27,10 +27,9 @@ class PantallaVerificarCorreo extends StatefulWidget {
 
   const PantallaVerificarCorreo.desdeEnlace({
     super.key,
-    required EnlaceAutenticacion enlace,
+    required EnlaceAutenticacion this.enlace,
     this.servicioEnlace,
-  }) : enlace = enlace,
-       correo = '',
+  }) : correo = '',
        esProfesional = false,
        servicio = const ServicioRegistro();
 

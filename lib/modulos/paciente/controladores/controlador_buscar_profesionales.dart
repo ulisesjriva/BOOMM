@@ -6,9 +6,7 @@ import 'package:boom/repositorios/repositorio_profesionales.dart';
 
 /// Coordina consultas y filtros; no depende de pantallas ni de navegacion.
 class ControladorBuscarProfesionales extends ChangeNotifier {
-  ControladorBuscarProfesionales({
-    required RepositorioProfesionales repositorio,
-  }) : _repositorio = repositorio;
+  ControladorBuscarProfesionales({required this._repositorio});
 
   final RepositorioProfesionales _repositorio;
   FiltroProfesional _filtro = FiltroProfesional.inicial();

@@ -98,8 +98,8 @@ class PantallaOpcionesAcceso extends StatelessWidget {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: TemaPsicobloom.colorPrincipal.withOpacity(
-                                0.10,
+                              color: TemaPsicobloom.colorPrincipal.withValues(
+                                alpha: 0.10,
                               ),
                               blurRadius: 20,
                               offset: const Offset(0, 8),
@@ -155,8 +155,8 @@ class PantallaOpcionesAcceso extends StatelessWidget {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: TemaPsicobloom.colorPrincipal.withOpacity(
-                            0.06,
+                          color: TemaPsicobloom.colorPrincipal.withValues(
+                            alpha: 0.06,
                           ),
                           blurRadius: 18,
                           offset: const Offset(0, 8),

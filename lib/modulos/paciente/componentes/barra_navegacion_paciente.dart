@@ -135,4 +135,3 @@ class BarraNavegacionPaciente extends StatelessWidget {
     );
   }
 }
-

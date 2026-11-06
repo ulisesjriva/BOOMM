@@ -145,8 +145,9 @@ class ServicioEnlaceAutenticacion {
     if (error is ErrorEnlaceAutenticacion) return error.mensaje;
     if (error is AuthException) {
       final mensaje = error.message.toLowerCase();
-      if (error.statusCode == '429')
+      if (error.statusCode == '429') {
         return 'Demasiados intentos. Espera antes de continuar.';
+      }
       if (mensaje.contains('expired') ||
           mensaje.contains('invalid token') ||
           mensaje.contains('token has expired or is invalid')) {

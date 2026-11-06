@@ -355,7 +355,7 @@ class _PantallaRegistroPasoDosState extends State<PantallaRegistroPasoDos> {
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: TemaPsicobloom.colorInformacion
-                                    .withOpacity(0.3),
+                                    .withValues(alpha: 0.3),
                               ),
                             ),
                             child: const Row(
