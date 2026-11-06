@@ -6,7 +6,7 @@ El nombre del producto es **PsicoBloom**. El paquete Dart conserva el nombre té
 
 ## Estructura y estado
 
-Consultar [Organización del código y responsabilidades MVC](documentacion/arquitectura_mvc.md).
+Consultar [Organización del código y responsabilidades MVC](Documentacion/arquitectura_mvc.md).
 
 - `lib/modulos/autenticacion/`: acceso, registro, recuperación, confirmación y coordinación de enlaces.
 - `lib/modulos/paciente/`: inicio, búsqueda, componentes y favoritos.
