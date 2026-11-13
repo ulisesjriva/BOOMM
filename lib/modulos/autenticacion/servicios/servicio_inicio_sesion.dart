@@ -101,7 +101,7 @@ class ServicioInicioSesion {
       if (mensaje.contains('email not confirmed')) {
         return 'Confirma tu correo mediante el enlace de registro antes de ingresar.';
       }
-      return 'No se pudo autenticar la cuenta. Comprueba tu conexion y vuelve a intentarlo.';
+      return 'No se pudo autenticar (${error.message}). Comprueba tu conexión.';
     }
     if (error is PostgrestException) {
       return 'No se pudo consultar tu perfil. Revisa la funcion perfil_del_usuario_actual y sus permisos en Supabase.';

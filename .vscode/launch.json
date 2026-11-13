@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "PsicoBloom (con Supabase)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define-from-file=configuracion_supabase.json"
+      ]
+    },
+    {
+      "name": "PsicoBloom - Modo Desarrollo (Paciente)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main_desarrollo.dart",
+      "toolArgs": [
+        "--dart-define-from-file=configuracion_supabase.json"
+      ]
+    }
+  ]
+}

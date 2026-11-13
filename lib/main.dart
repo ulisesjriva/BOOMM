@@ -20,6 +20,10 @@ Future<void> main() async {
   // Instancia temprana; el enlace inicial tambien se recupera una sola vez.
   AppLinks();
   if (ConfiguracionSupabase.estaConfigurado) {
+    debugPrint('URL SUPABASE: ${ConfiguracionSupabase.url}');
+debugPrint(
+  'CLAVE CONFIGURADA: ${ConfiguracionSupabase.claveAnon.isNotEmpty}',
+);
     await Supabase.initialize(
       url: ConfiguracionSupabase.url,
       publishableKey: ConfiguracionSupabase.claveAnon,
