@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:image_picker/image_picker.dart';
@@ -34,31 +36,40 @@ typedef EjecutorRpcPerfilProfesional = Future<dynamic> Function(
   Map<String, dynamic>? parametros,
 });
 
-typedef SubidorFotografiaStorage = Future<String> Function({
-  required String rutaArchivo,
-  required Uint8List bytes,
-  required String tipoMime,
+/// Respuesta normalizada de la Edge Function de subida de fotografía.
+class RespuestaSubidaFotoEdge {
+  final int estado;
+  final dynamic datos;
+
+  const RespuestaSubidaFotoEdge({required this.estado, required this.datos});
+}
+
+typedef InvocadorSubidaFotoEdge = Future<RespuestaSubidaFotoEdge> Function(
+  String nombreFuncion, {
+  required Map<String, dynamic> cuerpo,
 });
 
 /// Servicio encargado de consultar y actualizar el perfil profesional,
 /// sus especialidades (`public."ProfesionalEspecialidad"`), servicios (`public."Servicios"`),
-/// modalidad y ubicacion (`public."Profesionales"`) y fotografia en Supabase Storage.
-/// No utiliza secretos privados en Flutter; las politicas RLS protegen la carpeta UID.
+/// modalidad y ubicacion (`public."Profesionales"`) y fotografia mediante la Edge Function
+/// `subir-foto-profesional` (Cloudinary firmado en servidor).
+/// No utiliza secretos privados en Flutter.
 class ServicioPerfilProfesional {
   final RepositorioEspecialidades repositorioEspecialidades;
   final EjecutorRpcPerfilProfesional? ejecutorRpc;
-  final SubidorFotografiaStorage? subidorFotografia;
+  final InvocadorSubidaFotoEdge? invocadorSubidaFoto;
   final String? Function()? lectorUsuarioActualId;
 
   const ServicioPerfilProfesional({
     this.repositorioEspecialidades = const RepositorioEspecialidadesSupabase(),
     this.ejecutorRpc,
-    this.subidorFotografia,
+    this.invocadorSubidaFoto,
     this.lectorUsuarioActualId,
   });
 
-  static const String nombreBucketFotos = 'fotos-profesionales';
+  static const String nombreFuncionSubirFoto = 'subir-foto-profesional';
   static const int limiteBytesFotografia = 5 * 1024 * 1024; // 5 MB
+  static const Duration tiempoEsperaSubidaFoto = Duration(seconds: 25);
 
   /// Duracion estandar acordada en minutos para los servicios registrados
   /// desde el perfil profesional (unificada con `05_perfiles_especialidades_ubicacion.sql`).
@@ -160,6 +171,7 @@ class ServicioPerfilProfesional {
   }
 
   /// Abre el selector de imagenes del dispositivo. Devuelve null si el usuario cancela.
+  /// Permite unicamente archivos JPG/JPEG y PNG de hasta 5 MB.
   Future<ArchivoImagenSeleccionada?> seleccionarFotografia({
     ImageSource origen = ImageSource.gallery,
   }) async {
@@ -175,32 +187,7 @@ class ServicioPerfilProfesional {
         return null; // Cancelado por el usuario
       }
       final bytes = await archivo.readAsBytes();
-      if (bytes.isEmpty) {
-        throw const ErrorPerfilProfesional(
-          'El archivo seleccionado está vacío.',
-        );
-      }
-      if (bytes.lengthInBytes > limiteBytesFotografia) {
-        throw const ErrorPerfilProfesional(
-          'La fotografía supera el límite de 5 MB. Elige una imagen más ligera.',
-        );
-      }
-      final nombre = archivo.name.toLowerCase();
-      final esPng = nombre.endsWith('.png');
-      final esWebp = nombre.endsWith('.webp');
-      return ArchivoImagenSeleccionada(
-        bytes: bytes,
-        extensionArchivo: esPng
-            ? 'png'
-            : esWebp
-            ? 'webp'
-            : 'jpg',
-        tipoMime: esPng
-            ? 'image/png'
-            : esWebp
-            ? 'image/webp'
-            : 'image/jpeg',
-      );
+      return _construirArchivoValidado(bytes);
     } on ErrorPerfilProfesional {
       rethrow;
     } catch (_) {
@@ -210,9 +197,9 @@ class ServicioPerfilProfesional {
     }
   }
 
-  /// Sube la fotografia a la carpeta propia `<uid>/perfil.<ext>` en Supabase Storage,
-  /// actualiza `foto_url` mediante la RPC `actualizar_foto_profesional_propia` y
-  /// comprueba que la URL haya quedado efectivamente asociada al perfil profesional.
+  /// Envia la fotografia autenticada a la Edge Function `subir-foto-profesional`
+  /// (que sube a Cloudinary con firma en servidor y actualiza `foto_url` en DB)
+  /// y comprueba que la URL devuelta haya quedado efectivamente asociada al perfil profesional.
   Future<String> subirYGuardarFotografia(
     ArchivoImagenSeleccionada imagen,
   ) async {
@@ -223,83 +210,169 @@ class ServicioPerfilProfesional {
       );
     }
 
-    final rutaArchivo = '$uid/perfil.${imagen.extensionArchivo}';
-    try {
-      final String urlConMarcaTiempo;
-      if (subidorFotografia != null) {
-        urlConMarcaTiempo = await subidorFotografia!(
-          rutaArchivo: rutaArchivo,
-          bytes: imagen.bytes,
-          tipoMime: imagen.tipoMime,
-        );
-      } else {
-        final cliente = _cliente;
-        await cliente.storage
-            .from(nombreBucketFotos)
-            .uploadBinary(
-              rutaArchivo,
-              imagen.bytes,
-              fileOptions: FileOptions(
-                upsert: true,
-                contentType: imagen.tipoMime,
-              ),
-            );
+    _construirArchivoValidado(imagen.bytes);
 
-        final urlPublica = cliente.storage
-            .from(nombreBucketFotos)
-            .getPublicUrl(rutaArchivo);
-        urlConMarcaTiempo =
-            '$urlPublica?t=${DateTime.now().millisecondsSinceEpoch}';
+    try {
+      final cuerpo = <String, dynamic>{
+        'archivoBase64': base64Encode(imagen.bytes),
+      };
+
+      final respuesta =
+          await (invocadorSubidaFoto != null
+                  ? invocadorSubidaFoto!(nombreFuncionSubirFoto, cuerpo: cuerpo)
+                  : _invocarEdgeSubirFoto(cuerpo))
+              .timeout(tiempoEsperaSubidaFoto);
+
+      if (respuesta.estado != 200) {
+        throw ErrorPerfilProfesional(
+          _mapearMensajeErrorEdge(respuesta.estado, respuesta.datos),
+        );
       }
 
-      if (urlConMarcaTiempo.trim().isEmpty) {
+      final datosMapa = _normalizarMapaRespuesta(respuesta.datos);
+      final urlSubida = (datosMapa?['fotoUrl'] as String?)?.trim() ?? '';
+      if (!urlSubida.startsWith('https://')) {
         throw const ErrorPerfilProfesional(
           'No se pudo obtener una URL válida para la fotografía subida.',
         );
       }
 
-      await _invocarRpc(
-        'actualizar_foto_profesional_propia',
-        parametros: {'p_foto_url': urlConMarcaTiempo},
-      );
-
       final perfilVerificado = await obtenerPerfilPropio();
       final fotoAsociada = perfilVerificado.fotoUrl?.trim() ?? '';
-      if (fotoAsociada.isEmpty || fotoAsociada != urlConMarcaTiempo.trim()) {
+      if (fotoAsociada.isEmpty || fotoAsociada != urlSubida) {
         throw const ErrorPerfilProfesional(
-          'Se subió la imagen, pero la fotografía no quedó asociada a tu perfil profesional. Inténtalo nuevamente.',
+          'No se pudo confirmar la actualización de tu fotografía. Se conservó tu foto anterior.',
         );
       }
 
       return fotoAsociada;
-    } on StorageException catch (error) {
-      throw ErrorPerfilProfesional(
-        TraductorErroresSupabase.traducirErrorAlmacenamiento(
-          error,
-          accionPorDefecto: 'No pudimos guardar la fotografía en este momento. Inténtalo nuevamente.',
-        ),
+    } on TimeoutException {
+      throw const ErrorPerfilProfesional(
+        'La subida de la fotografía tardó demasiado. Comprueba tu conexión e inténtalo nuevamente.',
       );
+    } on FunctionException catch (error) {
+      throw ErrorPerfilProfesional(
+        _mapearMensajeErrorEdge(error.status, error.details),
+      );
+    } on ErrorPerfilProfesional {
+      rethrow;
     } on PostgrestException catch (error) {
-      if (error.code == 'PGRST202' || error.code == '42883') {
-        throw const ErrorPerfilProfesional(
-          'Se subió la imagen, pero el servidor no tiene disponible la función para asociar la fotografía al perfil profesional.',
-        );
-      }
       throw ErrorPerfilProfesional(
         TraductorErroresSupabase.traducirErrorBaseDatos(
           error,
-          accionPorDefecto: 'Se subió la imagen, pero no pudimos asociar la fotografía a tu perfil en este momento. Inténtalo nuevamente.',
+          accionPorDefecto: 'No se pudo confirmar la actualización de tu fotografía. Inténtalo nuevamente.',
         ),
       );
-    } catch (error) {
-      if (error is ErrorPerfilProfesional) rethrow;
-      throw ErrorPerfilProfesional(
-        TraductorErroresSupabase.traducirErrorAlmacenamiento(
-          error,
-          accionPorDefecto: 'No se pudo cargar la fotografía. Comprueba tu conexión e inténtalo nuevamente.',
-        ),
+    } catch (_) {
+      throw const ErrorPerfilProfesional(
+        'No se pudo subir la fotografía. Comprueba tu conexión e inténtalo nuevamente.',
       );
     }
+  }
+
+  Future<RespuestaSubidaFotoEdge> _invocarEdgeSubirFoto(
+    Map<String, dynamic> cuerpo,
+  ) async {
+    final respuesta = await _cliente.functions.invoke(
+      nombreFuncionSubirFoto,
+      body: cuerpo,
+    );
+    return RespuestaSubidaFotoEdge(
+      estado: respuesta.status,
+      datos: respuesta.data,
+    );
+  }
+
+  ArchivoImagenSeleccionada _construirArchivoValidado(Uint8List bytes) {
+    if (bytes.isEmpty) {
+      throw const ErrorPerfilProfesional('El archivo seleccionado está vacío.');
+    }
+    if (bytes.lengthInBytes > limiteBytesFotografia) {
+      throw const ErrorPerfilProfesional(
+        'La fotografía supera el límite de 5 MB. Elige una imagen más ligera.',
+      );
+    }
+
+    final formato = _detectarFormatoImagen(bytes);
+    if (formato == null) {
+      throw const ErrorPerfilProfesional(
+        'Solo se permiten fotografías en formato JPG o PNG.',
+      );
+    }
+    return formato;
+  }
+
+  ArchivoImagenSeleccionada? _detectarFormatoImagen(Uint8List bytes) {
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xFF &&
+        bytes[1] == 0xD8 &&
+        bytes[2] == 0xFF) {
+      return ArchivoImagenSeleccionada(
+        bytes: bytes,
+        extensionArchivo: 'jpg',
+        tipoMime: 'image/jpeg',
+      );
+    }
+
+    if (bytes.length >= 8 &&
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4E &&
+        bytes[3] == 0x47 &&
+        bytes[4] == 0x0D &&
+        bytes[5] == 0x0A &&
+        bytes[6] == 0x1A &&
+        bytes[7] == 0x0A) {
+      return ArchivoImagenSeleccionada(
+        bytes: bytes,
+        extensionArchivo: 'png',
+        tipoMime: 'image/png',
+      );
+    }
+
+    return null;
+  }
+
+  Map<String, dynamic>? _normalizarMapaRespuesta(dynamic datos) {
+    if (datos is Map<String, dynamic>) {
+      return datos;
+    }
+    if (datos is Map) {
+      return Map<String, dynamic>.from(datos);
+    }
+    if (datos is String && datos.trim().isNotEmpty) {
+      try {
+        final decodificado = jsonDecode(datos);
+        if (decodificado is Map) {
+          return Map<String, dynamic>.from(decodificado);
+        }
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  String _mapearMensajeErrorEdge(int estado, dynamic detalles) {
+    final mapa = _normalizarMapaRespuesta(detalles);
+    final mensajeServidor = (mapa?['mensaje'] as String?)?.trim();
+    if (mensajeServidor != null && mensajeServidor.isNotEmpty) {
+      return mensajeServidor;
+    }
+
+    if (estado == 401) {
+      return 'Tu sesión expiró o no es válida. Vuelve a iniciar sesión.';
+    }
+    if (estado == 403) {
+      return 'No tienes permiso para actualizar esta fotografía.';
+    }
+    if (estado == 400 || estado == 413 || estado == 415) {
+      return 'Solo se permiten fotografías JPG o PNG de hasta 5 MB.';
+    }
+    if (estado == 504) {
+      return 'La subida de la fotografía tardó demasiado. Inténtalo nuevamente.';
+    }
+    return 'No se pudo subir la fotografía en este momento. Inténtalo nuevamente.';
   }
 
   /// Guarda de forma transaccional los datos basicos, especialidades, servicios,

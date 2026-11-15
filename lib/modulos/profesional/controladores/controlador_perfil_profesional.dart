@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:boom/modelos/especialidad.dart';
 import 'package:boom/modulos/profesional/modelos/perfil_profesional.dart';
+import 'package:boom/modulos/profesional/servicios/servicio_avisos_telegram.dart';
 import 'package:boom/modulos/profesional/servicios/servicio_perfil_profesional.dart';
 import 'package:boom/modulos/profesional/servicios/servicio_ubicacion_consultorio.dart';
 import 'package:boom/repositorios/repositorio_especialidades.dart';
@@ -14,6 +15,7 @@ class ControladorPerfilProfesional extends ChangeNotifier {
     this.servicio = const ServicioPerfilProfesional(),
     this.repositorioEspecialidades = const RepositorioEspecialidadesSupabase(),
     this.servicioUbicacion = const ServicioUbicacionConsultorio(),
+    this.servicioTelegram = const ServicioAvisosTelegram(),
     PerfilProfesional? perfilInicial,
   }) : _perfil = perfilInicial {
     if (perfilInicial != null) {
@@ -29,6 +31,7 @@ class ControladorPerfilProfesional extends ChangeNotifier {
   final ServicioPerfilProfesional servicio;
   final RepositorioEspecialidades repositorioEspecialidades;
   final ServicioUbicacionConsultorio servicioUbicacion;
+  final ServicioAvisosTelegram servicioTelegram;
 
   PerfilProfesional? _perfil;
   List<Especialidad> _catalogoEspecialidades = const [];
@@ -42,10 +45,15 @@ class ControladorPerfilProfesional extends ChangeNotifier {
   bool _estaGuardando = false;
   bool _estaSubiendoFoto = false;
   bool _estaObteniendoUbicacion = false;
+  bool _estaGestionandoTelegram = false;
   bool _cerrado = false;
   String? _mensajeError;
   String? _mensajeExito;
   String? _avisoUbicacion;
+  EstadoTelegramProfesional _estadoTelegram = const EstadoTelegramProfesional(
+    conectado: false,
+    tieneCodigoPendiente: false,
+  );
 
   PerfilProfesional? get perfil => _perfil;
   List<Especialidad> get catalogoEspecialidades => _catalogoEspecialidades;
@@ -60,11 +68,14 @@ class ControladorPerfilProfesional extends ChangeNotifier {
   bool get estaGuardando => _estaGuardando;
   bool get estaSubiendoFoto => _estaSubiendoFoto;
   bool get estaObteniendoUbicacion => _estaObteniendoUbicacion;
+  bool get estaGestionandoTelegram => _estaGestionandoTelegram;
+  EstadoTelegramProfesional get estadoTelegram => _estadoTelegram;
   bool get ocupado =>
       _estaCargando ||
       _estaGuardando ||
       _estaSubiendoFoto ||
-      _estaObteniendoUbicacion;
+      _estaObteniendoUbicacion ||
+      _estaGestionandoTelegram;
   String? get mensajeError => _mensajeError;
   String? get mensajeExito => _mensajeExito;
   String? get avisoUbicacion => _avisoUbicacion;
@@ -98,6 +109,15 @@ class ControladorPerfilProfesional extends ChangeNotifier {
         _motivoRechazo = await servicio.consultarMotivoRechazoPropio();
       } else {
         _motivoRechazo = null;
+      }
+
+      try {
+        final estado = await servicioTelegram.obtenerEstado();
+        if (!_cerrado) {
+          _estadoTelegram = estado;
+        }
+      } catch (_) {
+        // Los avisos por Telegram son opcionales y no bloquean la carga del perfil.
       }
     } catch (error) {
       if (!_cerrado) {
@@ -372,6 +392,95 @@ class ControladorPerfilProfesional extends ChangeNotifier {
     } finally {
       if (!_cerrado) {
         _estaGuardando = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<bool> conectarTelegram() async {
+    if (_cerrado || ocupado) return false;
+    _estaGestionandoTelegram = true;
+    _mensajeError = null;
+    _mensajeExito = null;
+    notifyListeners();
+
+    try {
+      final enlace = await servicioTelegram.generarEnlaceVinculacion();
+      if (_cerrado) return false;
+      await servicioTelegram.abrirEnlaceVinculacion(enlace.enlaceTelegram);
+      if (_cerrado) return false;
+
+      _estadoTelegram = EstadoTelegramProfesional(
+        conectado: _estadoTelegram.conectado,
+        conectadoEn: _estadoTelegram.conectadoEn,
+        tieneCodigoPendiente: true,
+        codigoExpiraEn: enlace.expiraEn,
+      );
+      _mensajeExito = 'Se abrió Telegram. Toca «Iniciar» en el bot y luego pulsa «Comprobar conexión».';
+      return true;
+    } catch (error) {
+      if (!_cerrado) {
+        _mensajeError = ServicioAvisosTelegram.explicarError(error);
+      }
+      return false;
+    } finally {
+      if (!_cerrado) {
+        _estaGestionandoTelegram = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<bool> comprobarConexionTelegram() async {
+    if (_cerrado || ocupado) return false;
+    _estaGestionandoTelegram = true;
+    _mensajeError = null;
+    _mensajeExito = null;
+    notifyListeners();
+
+    try {
+      final estado = await servicioTelegram.obtenerEstado();
+      if (_cerrado) return false;
+      _estadoTelegram = estado;
+      _mensajeExito = estado.conectado ? 'Telegram conectado correctamente.' : 'Aún no se confirma la conexión. Toca «Iniciar» en el bot de Telegram e inténtalo nuevamente.';
+      return estado.conectado;
+    } catch (error) {
+      if (!_cerrado) {
+        _mensajeError = ServicioAvisosTelegram.explicarError(error);
+      }
+      return false;
+    } finally {
+      if (!_cerrado) {
+        _estaGestionandoTelegram = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<bool> desconectarTelegram() async {
+    if (_cerrado || ocupado) return false;
+    _estaGestionandoTelegram = true;
+    _mensajeError = null;
+    _mensajeExito = null;
+    notifyListeners();
+
+    try {
+      await servicioTelegram.desconectar();
+      if (_cerrado) return false;
+      _estadoTelegram = const EstadoTelegramProfesional(
+        conectado: false,
+        tieneCodigoPendiente: false,
+      );
+      _mensajeExito = 'Avisos por Telegram desconectados.';
+      return true;
+    } catch (error) {
+      if (!_cerrado) {
+        _mensajeError = ServicioAvisosTelegram.explicarError(error);
+      }
+      return false;
+    } finally {
+      if (!_cerrado) {
+        _estaGestionandoTelegram = false;
         notifyListeners();
       }
     }

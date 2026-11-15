@@ -10,6 +10,7 @@ import 'package:boom/modelos/profesional.dart';
 import 'package:boom/modulos/paciente/vistas/pantalla_perfil_publico_profesional.dart';
 import 'package:boom/modulos/profesional/controladores/controlador_perfil_profesional.dart';
 import 'package:boom/modulos/profesional/modelos/perfil_profesional.dart';
+import 'package:boom/modulos/profesional/servicios/servicio_avisos_telegram.dart';
 import 'package:boom/modulos/profesional/servicios/servicio_perfil_profesional.dart';
 import 'package:boom/modulos/profesional/servicios/servicio_ubicacion_consultorio.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
@@ -27,6 +28,7 @@ class PantallaPerfilProfesional extends StatefulWidget {
   final ServicioPerfilProfesional servicio;
   final RepositorioEspecialidades repositorioEspecialidades;
   final ServicioUbicacionConsultorio servicioUbicacion;
+  final ServicioAvisosTelegram servicioTelegram;
   final bool mostrarMapaInteractivo;
   final bool esVistaIntegrada;
   final ValueChanged<PerfilProfesional>? alActualizarPerfil;
@@ -40,6 +42,7 @@ class PantallaPerfilProfesional extends StatefulWidget {
     this.servicio = const ServicioPerfilProfesional(),
     this.repositorioEspecialidades = const RepositorioEspecialidadesSupabase(),
     this.servicioUbicacion = const ServicioUbicacionConsultorio(),
+    this.servicioTelegram = const ServicioAvisosTelegram(),
     this.mostrarMapaInteractivo = true,
     this.esVistaIntegrada = false,
     this.alActualizarPerfil,
@@ -107,6 +110,7 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
       servicio: widget.servicio,
       repositorioEspecialidades: widget.repositorioEspecialidades,
       servicioUbicacion: widget.servicioUbicacion,
+      servicioTelegram: widget.servicioTelegram,
       perfilInicial: inicial,
     );
     _controlador.addListener(_sincronizarVista);
@@ -346,6 +350,8 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
                   const SizedBox(height: 16),
                 ],
                 _construirSeccionFotografia(),
+                const SizedBox(height: 16),
+                _construirSeccionAvisosTelegram(),
                 const SizedBox(height: 16),
                 _construirSeccionDatosProfesionales(),
                 const SizedBox(height: 16),
@@ -678,6 +684,160 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
                 icon: const Icon(Icons.camera_alt_outlined, size: 18),
                 label: const Text('Tomar foto'),
               ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _conectarTelegram() async {
+    final iniciado = await _controlador.conectarTelegram();
+    if (!mounted) return;
+    if (iniciado && _controlador.mensajeExito != null) {
+      _mostrarSnackBar(_controlador.mensajeExito!, esError: false);
+    } else if (_controlador.mensajeError != null) {
+      _mostrarSnackBar(_controlador.mensajeError!, esError: true);
+    }
+  }
+
+  Future<void> _comprobarConexionTelegram() async {
+    final conectado = await _controlador.comprobarConexionTelegram();
+    if (!mounted) return;
+    if (_controlador.mensajeError != null) {
+      _mostrarSnackBar(_controlador.mensajeError!, esError: true);
+    } else if (_controlador.mensajeExito != null) {
+      _mostrarSnackBar(_controlador.mensajeExito!, esError: !conectado);
+    }
+  }
+
+  Future<void> _desconectarTelegram() async {
+    final desconectado = await _controlador.desconectarTelegram();
+    if (!mounted) return;
+    if (desconectado && _controlador.mensajeExito != null) {
+      _mostrarSnackBar(_controlador.mensajeExito!, esError: false);
+    } else if (_controlador.mensajeError != null) {
+      _mostrarSnackBar(_controlador.mensajeError!, esError: true);
+    }
+  }
+
+  Widget _construirSeccionAvisosTelegram() {
+    final estado = _controlador.estadoTelegram;
+    final estaGestionando = _controlador.estaGestionandoTelegram;
+
+    return Container(
+      key: const Key('seccionPerfil_avisosTelegram'),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: TemaPsicobloom.colorSuperficie,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: TemaPsicobloom.colorBorde),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.notifications_active_outlined,
+                size: 20,
+                color: TemaPsicobloom.colorPrincipal,
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Avisos por Telegram',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: TemaPsicobloom.colorTexto,
+                  ),
+                ),
+              ),
+              Container(
+                key: const Key('estadoTelegramEtiqueta'),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: estado.conectado
+                      ? TemaPsicobloom.colorExito.withValues(alpha: 0.14)
+                      : TemaPsicobloom.colorFondo,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: estado.conectado
+                        ? TemaPsicobloom.colorExito
+                        : TemaPsicobloom.colorBorde,
+                  ),
+                ),
+                child: Text(
+                  estado.conectado ? 'Conectado' : 'No conectado',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: estado.conectado
+                        ? TemaPsicobloom.colorExito
+                        : TemaPsicobloom.colorTextoSecundario,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Recibe un aviso cuando tengas una nueva solicitud.',
+            style: TextStyle(
+              fontSize: 13.5,
+              color: TemaPsicobloom.colorTextoSecundario,
+            ),
+          ),
+          if (!estado.conectado && estado.tieneCodigoPendiente) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Enlace generado. Toca «Iniciar» en Telegram y luego «Comprobar conexión».',
+              style: TextStyle(
+                fontSize: 12.5,
+                color: TemaPsicobloom.colorPrincipal,
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              if (!estado.conectado)
+                OutlinedButton.icon(
+                  key: const Key('botonConectarTelegram'),
+                  onPressed: _controlador.ocupado ? null : _conectarTelegram,
+                  icon: estaGestionando
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.send_outlined, size: 18),
+                  label: const Text('Conectar Telegram'),
+                ),
+              OutlinedButton.icon(
+                key: const Key('botonComprobarTelegram'),
+                onPressed: _controlador.ocupado
+                    ? null
+                    : _comprobarConexionTelegram,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Comprobar conexión'),
+              ),
+              if (estado.conectado)
+                OutlinedButton.icon(
+                  key: const Key('botonDesconectarTelegram'),
+                  onPressed: _controlador.ocupado ? null : _desconectarTelegram,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: TemaPsicobloom.colorError,
+                  ),
+                  icon: const Icon(Icons.link_off_rounded, size: 18),
+                  label: const Text('Desconectar'),
+                ),
             ],
           ),
         ],

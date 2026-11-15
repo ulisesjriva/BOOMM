@@ -1,0 +1,8 @@
+# Configuración de Edge Functions de PsicoBloom.
+# ÚNICAMENTE telegram-webhook tiene verify_jwt = false porque recibe peticiones
+# externas directamente desde los servidores de Telegram y se autentica
+# validando la cabecera X-Telegram-Bot-Api-Secret-Token contra TELEGRAM_WEBHOOK_SECRET.
+# Todas las demás Edge Functions de usuario exigen JWT válido.
+
+[functions.telegram-webhook]
+verify_jwt = false

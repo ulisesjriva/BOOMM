@@ -307,7 +307,7 @@ void main() {
           contains('fotos-profesionales/prof-100/perfil.jpg'),
         );
 
-        // 3. Error de almacenamiento informa mensaje claro
+        // 3. Error de almacenamiento informa mensaje claro y conserva la foto anterior
         servicioPerfil.errorSubidaSimulado =
             'La fotografía supera el límite de 5 MB.';
         final fallido = await controlador.seleccionarYSubirFotografia();
@@ -315,6 +315,10 @@ void main() {
         expect(
           controlador.mensajeError,
           equals('La fotografía supera el límite de 5 MB.'),
+        );
+        expect(
+          controlador.perfil?.fotoUrl,
+          contains('fotos-profesionales/prof-100/perfil.jpg'),
         );
       },
     );
@@ -574,18 +578,17 @@ void main() {
         contains('No se pudieron guardar los servicios'),
       );
 
-      // 3. Si la fotografia se sube al bucket pero la URL no queda asociada al perfil en base de datos, no informa exito
+      // 3. Si la fotografia se sube pero la URL no queda asociada al perfil en base de datos, no informa exito
       final servicioFotoSinAsociar = ServicioPerfilProfesional(
         lectorUsuarioActualId: () => 'prof-100',
-        subidorFotografia: ({
-          required rutaArchivo,
-          required bytes,
-          required tipoMime,
-        }) async => 'https://proyecto.supabase.co/storage/v1/object/public/fotos-profesionales/prof-100/perfil.jpg?t=123',
+        invocadorSubidaFoto: (nombreFuncion, {required cuerpo}) async =>
+            const RespuestaSubidaFotoEdge(
+              estado: 200,
+              datos: {
+                'fotoUrl': 'https://res.cloudinary.com/demo/image/upload/v1/psicobloom/profesionales/prof-100.jpg',
+              },
+            ),
         ejecutorRpc: (nombreFuncion, {parametros}) async {
-          if (nombreFuncion == 'actualizar_foto_profesional_propia') {
-            return null;
-          }
           if (nombreFuncion == 'obtener_perfil_profesional_propio') {
             return <Map<String, dynamic>>[
               {
@@ -607,7 +610,7 @@ void main() {
       await expectLater(
         () => servicioFotoSinAsociar.subirYGuardarFotografia(
           ArchivoImagenSeleccionada(
-            bytes: Uint8List.fromList([1, 2, 3]),
+            bytes: Uint8List.fromList([0xFF, 0xD8, 0xFF, 1, 2, 3]),
             extensionArchivo: 'jpg',
             tipoMime: 'image/jpeg',
           ),
@@ -616,7 +619,7 @@ void main() {
           isA<ErrorPerfilProfesional>().having(
             (e) => e.mensaje,
             'mensaje',
-            contains('no quedó asociada a tu perfil profesional'),
+            contains('No se pudo confirmar la actualización de tu fotografía'),
           ),
         ),
       );
@@ -726,18 +729,17 @@ void main() {
         contains('No se pudieron guardar los servicios'),
       );
 
-      // 3. Si la fotografia se sube al bucket pero la URL no queda asociada al perfil en base de datos, no informa exito
+      // 3. Si la fotografia se sube pero la URL no queda asociada al perfil en base de datos, no informa exito
       final servicioFotoSinAsociar = ServicioPerfilProfesional(
         lectorUsuarioActualId: () => 'prof-100',
-        subidorFotografia: ({
-          required rutaArchivo,
-          required bytes,
-          required tipoMime,
-        }) async => 'https://proyecto.supabase.co/storage/v1/object/public/fotos-profesionales/prof-100/perfil.jpg?t=123',
+        invocadorSubidaFoto: (nombreFuncion, {required cuerpo}) async =>
+            const RespuestaSubidaFotoEdge(
+              estado: 200,
+              datos: {
+                'fotoUrl': 'https://res.cloudinary.com/demo/image/upload/v1/psicobloom/profesionales/prof-100.jpg',
+              },
+            ),
         ejecutorRpc: (nombreFuncion, {parametros}) async {
-          if (nombreFuncion == 'actualizar_foto_profesional_propia') {
-            return null;
-          }
           if (nombreFuncion == 'obtener_perfil_profesional_propio') {
             return <Map<String, dynamic>>[
               {
@@ -759,7 +761,7 @@ void main() {
       await expectLater(
         () => servicioFotoSinAsociar.subirYGuardarFotografia(
           ArchivoImagenSeleccionada(
-            bytes: Uint8List.fromList([1, 2, 3]),
+            bytes: Uint8List.fromList([0xFF, 0xD8, 0xFF, 1, 2, 3]),
             extensionArchivo: 'jpg',
             tipoMime: 'image/jpeg',
           ),
@@ -768,7 +770,7 @@ void main() {
           isA<ErrorPerfilProfesional>().having(
             (e) => e.mensaje,
             'mensaje',
-            contains('no quedó asociada a tu perfil profesional'),
+            contains('No se pudo confirmar la actualización de tu fotografía'),
           ),
         ),
       );
