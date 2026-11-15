@@ -31,6 +31,7 @@ class ControladorInicioSesion extends ChangeNotifier {
       if (_cerrado) return null;
       return perfil;
     } catch (error) {
+      debugPrint('[PsicoBloom] Error en iniciarSesion: $error');
       if (!_cerrado) {
         _mensajeError = ServicioInicioSesion.explicarError(error);
       }
