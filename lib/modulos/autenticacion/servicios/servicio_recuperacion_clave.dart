@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:boom/configuracion/configuracion_supabase.dart';
+import 'package:boom/nucleo/utilidades/traductor_errores_supabase.dart';
 
 class ErrorRecuperacionClave implements Exception {
   final String mensaje;
@@ -21,12 +22,13 @@ class ServicioRecuperacionClave {
   Future<void> solicitarEnlace(String correo) async {
     if (!ConfiguracionSupabase.estaConfigurado) {
       throw const ErrorRecuperacionClave(
-        'Falta la configuracion de Supabase. Ejecuta la app con la URL y la clave publica.',
+        'El servicio de recuperación no está disponible en este momento. Inténtalo más tarde.',
       );
     }
     final correoLimpio = correo.trim();
-    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(correoLimpio)) {
-      throw const ErrorRecuperacionClave('Ingresa un correo valido.');
+    final errorCorreo = TraductorErroresSupabase.validarCorreo(correoLimpio);
+    if (errorCorreo != null) {
+      throw ErrorRecuperacionClave(errorCorreo);
     }
     await Supabase.instance.client.auth.resetPasswordForEmail(
       correoLimpio,
@@ -36,12 +38,9 @@ class ServicioRecuperacionClave {
 
   static String explicarError(Object error) {
     if (error is ErrorRecuperacionClave) return error.mensaje;
-    if (error is AuthException) {
-      if (error.statusCode == '429') {
-        return 'Se alcanzo el limite de solicitudes. Espera antes de pedir otro enlace.';
-      }
-      return 'Supabase no pudo aceptar la solicitud de recuperacion. Comprueba tu conexion y vuelve a intentarlo.';
-    }
-    return 'No se pudo solicitar el enlace. Comprueba tu conexion a Internet.';
+    return TraductorErroresSupabase.traducirErrorAutenticacion(
+      error,
+      accionPorDefecto: 'No pudimos enviar el enlace de recuperación en este momento. Inténtalo nuevamente.',
+    );
   }
 }

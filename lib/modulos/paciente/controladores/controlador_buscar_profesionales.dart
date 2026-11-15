@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:boom/modelos/filtro_profesional.dart';
 import 'package:boom/modelos/profesional.dart';
 import 'package:boom/repositorios/repositorio_profesionales.dart';
+import 'package:boom/repositorios/repositorio_profesionales_supabase.dart';
 
 /// Coordina consultas y filtros; no depende de pantallas ni de navegacion.
 class ControladorBuscarProfesionales extends ChangeNotifier {
@@ -29,6 +30,10 @@ class ControladorBuscarProfesionales extends ChangeNotifier {
 
   Future<void> inicializar() async {
     if (_cerrado) return;
+    final repositorio = _repositorio;
+    if (repositorio is RepositorioProfesionalesSupabase) {
+      repositorio.limpiarCache();
+    }
     final version = _versionBusqueda;
     _estaCargando = true;
     _mensajeError = null;

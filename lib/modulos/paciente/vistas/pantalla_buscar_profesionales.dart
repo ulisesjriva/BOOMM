@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:boom/configuracion/configuracion_supabase.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
 import 'package:boom/modulos/paciente/componentes/barra_navegacion_paciente.dart';
@@ -10,8 +11,13 @@ import 'package:boom/modelos/filtro_profesional.dart';
 import 'package:boom/modulos/paciente/controladores/gestor_favoritos.dart';
 import 'package:boom/repositorios/repositorio_profesionales.dart';
 import 'package:boom/repositorios/repositorio_profesionales_simulado.dart';
+import 'package:boom/repositorios/repositorio_profesionales_supabase.dart';
 
 import 'pantalla_inicio_paciente.dart';
+import 'pantalla_mapa_profesionales.dart';
+import 'pantalla_mis_citas_paciente.dart';
+import 'pantalla_perfil_paciente.dart';
+import 'pantalla_perfil_publico_profesional.dart';
 import '../controladores/controlador_buscar_profesionales.dart';
 
 /// Pantalla 6: Buscar profesionales.
@@ -36,7 +42,11 @@ class _PantallaBuscarProfesionalesState
   void initState() {
     super.initState();
     _controlador = ControladorBuscarProfesionales(
-      repositorio: widget.repositorio ?? RepositorioProfesionalesSimulado(),
+      repositorio:
+          widget.repositorio ??
+          (ConfiguracionSupabase.estaConfigurado
+              ? RepositorioProfesionalesSupabase()
+              : RepositorioProfesionalesSimulado()),
     );
     _controlador.addListener(_actualizarVista);
     unawaited(_controlador.inicializar());
@@ -154,18 +164,29 @@ class _PantallaBuscarProfesionalesState
         }
         break;
       case 2:
-        _mostrarMensajeInformativo(
-          'El Mapa interactivo de profesionales se implementará en la Etapa 4.',
+        Navigator.push(
+          context,
+          MaterialPageRoute<void>(
+            builder: (context) =>
+                PantallaMapaProfesionales(repositorio: widget.repositorio),
+          ),
         );
         break;
       case 3:
-        _mostrarMensajeInformativo(
-          'El módulo de Mis citas corresponde a etapas posteriores del equipo.',
+        Navigator.push(
+          context,
+          MaterialPageRoute<void>(
+            builder: (context) =>
+                PantallaMisCitasPaciente(repositorio: widget.repositorio),
+          ),
         );
         break;
       case 4:
-        _mostrarMensajeInformativo(
-          'El perfil del paciente corresponde a etapas posteriores del equipo.',
+        Navigator.push(
+          context,
+          MaterialPageRoute<void>(
+            builder: (context) => const PantallaPerfilPaciente(),
+          ),
         );
         break;
     }
@@ -776,8 +797,15 @@ class _PantallaBuscarProfesionalesState
                 esFavorito: esFavorito,
                 alAlternarFavorito: () => _alternarFavorito(profesional.id),
                 alVerPerfil: () {
-                  _mostrarMensajeInformativo(
-                    'La visualización de perfil detallado se implementará en etapas posteriores.',
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => PantallaPerfilPublicoProfesional(
+                        profesional: profesional,
+                        mostrarMapaInteractivo:
+                            ConfiguracionSupabase.estaConfigurado,
+                      ),
+                    ),
                   );
                 },
               ),

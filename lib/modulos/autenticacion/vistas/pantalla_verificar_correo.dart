@@ -72,8 +72,18 @@ class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
   }
 
   void _mostrarError(String mensaje) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(mensaje)));
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: TemaPsicobloom.colorPrincipalOscuro,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        content: Text(
+          mensaje,
+          style: const TextStyle(color: Colors.white, fontSize: 13),
+        ),
+      ),
+    );
   }
 
   Future<void> _comprobarVerificacion() async {
@@ -93,7 +103,7 @@ class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
         ? 'Todavía no hay una sesión confirmada para este correo en esta aplicación. '
               'Si confirmaste desde la página web, vuelve a iniciar sesión con tu correo y contraseña. '
               'La confirmación externa no inicia una sesión en este dispositivo.'
-        : 'Supabase confirmó el correo y devolvió tu perfil real.\n\n'
+        : 'Tu correo electrónico fue confirmado y tu perfil está listo.\n\n'
               'Nombre: ${perfil.nombre} ${perfil.apellido}\n'
               'Rol: ${perfil.rol}\n'
               'Estado de la cuenta: ${perfil.cuentaActiva ? "activa" : "desactivada"}\n'
@@ -128,10 +138,17 @@ class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
       return;
     }
     if (aceptado) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Solicitud de reenvío aceptada. Revisa tu bandeja y spam; la entrega del correo aún debe comprobarse.',
+        SnackBar(
+          backgroundColor: TemaPsicobloom.colorPrincipalOscuro,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          content: const Text(
+            'Solicitud de reenvío aceptada. Revisa tu bandeja principal y la carpeta de spam.',
+            style: TextStyle(color: Colors.white, fontSize: 13),
           ),
         ),
       );
@@ -200,7 +217,7 @@ class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Revisa el mensaje de confirmación en el correo indicado. Si la dirección ya tenía una cuenta, Supabase puede no enviar un mensaje nuevo:',
+                  'Revisa el mensaje de confirmación enviado al correo indicado. Si la dirección ya tenía una cuenta, es posible que no recibas un mensaje nuevo:',
                   style: const TextStyle(
                     fontSize: 15,
                     color: TemaPsicobloom.colorTextoSecundario,
@@ -379,7 +396,7 @@ class _PantallaVerificarCorreoState extends State<PantallaVerificarCorreo> {
                     Text(
                       _mensajeEnlace ??
                           (esValido
-                              ? 'Pulsa el botón para confirmar tu correo con Supabase. Después podrás iniciar sesión.'
+                              ? 'Pulsa el botón para confirmar tu correo electrónico. Después podrás iniciar sesión.'
                               : 'Abre el enlace más reciente del correo o solicita uno nuevo desde la aplicación.'),
                       textAlign: TextAlign.center,
                     ),

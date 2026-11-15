@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:boom/modulos/autenticacion/controladores/controlador_inicio_sesion.dart';
 import 'package:boom/modulos/autenticacion/servicios/servicio_inicio_sesion.dart';
-import 'package:boom/modulos/paciente/vistas/pantalla_inicio_paciente.dart';
+import 'package:boom/modulos/autenticacion/vistas/navegador_roles.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
 import 'package:boom/nucleo/componentes/icono_google.dart';
+import 'package:boom/nucleo/utilidades/traductor_errores_supabase.dart';
 import 'package:boom/modulos/autenticacion/vistas/pantalla_recuperar_clave.dart';
 import 'package:boom/modulos/autenticacion/vistas/pantalla_registro_paso_uno.dart';
 import 'package:boom/modulos/autenticacion/vistas/pantalla_completar_perfil.dart';
@@ -93,11 +94,7 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
     _controladorClave.clear();
     Navigator.of(context).pushAndRemoveUntil<void>(
       MaterialPageRoute<void>(
-        builder: (context) => PantallaInicioPaciente(
-          nombrePaciente: perfil.nombre.trim().isEmpty
-              ? 'Paciente'
-              : perfil.nombre.trim(),
-        ),
+        builder: (context) => NavegadorRoles.construirDestinoPorPerfil(perfil),
       ),
       (ruta) => false,
     );
@@ -285,16 +282,7 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
                               hintText: 'tu@correo.com',
                               prefixIcon: Icon(Icons.mail_outline_rounded),
                             ),
-                            validator: (valor) {
-                              if (valor == null || valor.trim().isEmpty) {
-                                return 'Por favor ingresa tu correo electrónico';
-                              }
-                              if (!valor.contains('@') ||
-                                  !valor.contains('.')) {
-                                return 'Ingresa un formato de correo válido';
-                              }
-                              return null;
-                            },
+                            validator: TraductorErroresSupabase.validarCorreo,
                           ),
                           const SizedBox(height: 16),
 
@@ -335,10 +323,10 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
                             ),
                             validator: (valor) {
                               if (valor == null || valor.isEmpty) {
-                                return 'Por favor ingresa tu contraseña';
+                                return 'Ingresa tu contraseña para continuar.';
                               }
                               if (valor.length < 6) {
-                                return 'La contraseña debe tener al menos 6 caracteres';
+                                return 'La contraseña debe tener al menos 6 caracteres.';
                               }
                               return null;
                             },

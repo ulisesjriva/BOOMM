@@ -8,12 +8,15 @@ El nombre del producto es **PsicoBloom**. El paquete Dart conserva el nombre té
 
 Consultar [Organización del código y responsabilidades MVC](Documentacion/arquitectura_mvc.md).
 
-- `lib/modulos/autenticacion/`: acceso, registro, recuperación, confirmación y coordinación de enlaces.
-- `lib/modulos/paciente/`: inicio, búsqueda, componentes y favoritos.
+- `lib/modulos/autenticacion/`: acceso, registro, recuperación, confirmación, sesión persistente, enrutamiento por rol y coordinación de enlaces.
+- `lib/modulos/paciente/`: inicio, búsqueda conectada, perfil del paciente, perfil público del profesional, componentes y favoritos.
+- `lib/modulos/profesional/`: inicio del profesional, perfil profesional, fotografía en Supabase Storage, especialidades, servicios y ubicación del consultorio.
+- `lib/modulos/administrador/`: inicio administrativo, revisión de profesionales pendientes y gestión de estado de cuentas.
 - `lib/nucleo/`: componentes y tema compartidos.
-- `lib/modelos/`, `lib/repositorios/`, `lib/datos/`: modelos, consultas y datos de demostración compartidos.
+- `lib/modelos/`, `lib/repositorios/`, `lib/datos/`: modelos, repositorios reales (`RepositorioEspecialidadesSupabase`, `RepositorioProfesionalesSupabase`) y datos de demostración compartidos.
+- `supabase/sql/`: scripts de estructura, RLS, funciones RPC, migración `05_perfiles_especialidades_ubicacion.sql` y verificación transaccional `04_verificacion.sql`.
 - `web_autenticacion/`: sitio auxiliar de autenticación publicado mediante Firebase Hosting.
-- `test/`: verificaciones de coordinación y widgets con dependencias simuladas.
+- `test/`: verificaciones de modelos, controladores, repositorios y widgets con dependencias simuladas.
 
 En el commit base `4b3b059`, la desarrolladora informó `flutter analyze` sin incidencias y 83 pruebas aprobadas. Las pruebas reales finales de autenticación se registran como pendientes en la documentación; una prueba simulada no equivale a una confirmación de correo real.
 

@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:boom/configuracion/configuracion_supabase.dart';
 import 'package:boom/modulos/autenticacion/modelos/enlace_autenticacion.dart';
+import 'package:boom/nucleo/utilidades/traductor_errores_supabase.dart';
 
 class ErrorEnlaceAutenticacion implements Exception {
   final String mensaje;
@@ -26,7 +27,7 @@ class ServicioEnlaceAutenticacion {
     }
     if (!ConfiguracionSupabase.estaConfigurado) {
       throw const ErrorEnlaceAutenticacion(
-        'Falta la configuracion de Supabase. Ejecuta la app con su URL y clave publica.',
+        'El servicio de validación no está disponible en este momento. Inténtalo más tarde.',
       );
     }
     return _cliente ??= SupabaseClient(
@@ -40,7 +41,7 @@ class ServicioEnlaceAutenticacion {
     if (enlace.tipo != TipoEnlaceAutenticacion.confirmacion ||
         enlace.tokenHash == null) {
       throw const ErrorEnlaceAutenticacion(
-        'El enlace de confirmacion no es valido.',
+        'El enlace de confirmación no es válido.',
       );
     }
     final respuesta = await _conexion.auth.verifyOTP(
@@ -52,7 +53,7 @@ class ServicioEnlaceAutenticacion {
         usuario.emailConfirmedAt == null ||
         respuesta.session == null) {
       throw const ErrorEnlaceAutenticacion(
-        'No se pudo comprobar la confirmacion del correo.',
+        'No se pudo comprobar la confirmación del correo.',
       );
     }
     final correo = usuario.email ?? '';
@@ -65,7 +66,7 @@ class ServicioEnlaceAutenticacion {
     if (enlace.tipo != TipoEnlaceAutenticacion.recuperacion ||
         enlace.tokenHash == null) {
       throw const ErrorEnlaceAutenticacion(
-        'Abre un enlace de recuperacion valido desde tu correo.',
+        'Abre un enlace de recuperación válido desde tu correo.',
       );
     }
     final respuesta = await _conexion.auth.verifyOTP(
@@ -76,7 +77,7 @@ class ServicioEnlaceAutenticacion {
         respuesta.session == null ||
         respuesta.session!.user.id != respuesta.user!.id) {
       throw const ErrorEnlaceAutenticacion(
-        'No se obtuvo una sesion de recuperacion valida.',
+        'Este enlace ya no es válido o ha expirado. Solicita uno nuevo para continuar.',
       );
     }
     _idRecuperacion = respuesta.user!.id;
@@ -86,11 +87,8 @@ class ServicioEnlaceAutenticacion {
     if (clave == null || clave.length < 11) {
       return 'Usa al menos 11 caracteres.';
     }
-    if (!RegExp(r'[a-z]').hasMatch(clave) ||
-        !RegExp(r'[A-Z]').hasMatch(clave) ||
-        !RegExp(r'[0-9]').hasMatch(clave) ||
-        !RegExp(r'[!-/:-@\[-`{-~]').hasMatch(clave)) {
-      return 'Incluye mayuscula, minuscula, numero y simbolo.';
+    if (!TraductorErroresSupabase.cumpleRequisitosClave(clave)) {
+      return 'Incluye mayúscula, minúscula, número y símbolo.';
     }
     return null;
   }
@@ -105,13 +103,13 @@ class ServicioEnlaceAutenticacion {
         id == null ||
         cliente.auth.currentSession?.user.id != id) {
       throw const ErrorEnlaceAutenticacion(
-        'Primero valida el enlace de recuperacion.',
+        'Primero valida el enlace de recuperación.',
       );
     }
     final usuario = (await cliente.auth.getUser()).user;
     if (usuario?.id != id) {
       throw const ErrorEnlaceAutenticacion(
-        'La sesion de recuperacion ya no es valida. Solicita otro enlace.',
+        'La sesión de recuperación ya no es válida. Solicita otro enlace.',
       );
     }
     final respuesta = await cliente.auth.updateUser(
@@ -119,7 +117,7 @@ class ServicioEnlaceAutenticacion {
     );
     if (respuesta.user?.id != id) {
       throw const ErrorEnlaceAutenticacion(
-        'No se pudo comprobar el cambio de contrasena.',
+        'No se pudo comprobar el cambio de contraseña.',
       );
     }
     await cerrar();
@@ -143,24 +141,9 @@ class ServicioEnlaceAutenticacion {
 
   static String explicarError(Object error) {
     if (error is ErrorEnlaceAutenticacion) return error.mensaje;
-    if (error is AuthException) {
-      final mensaje = error.message.toLowerCase();
-      if (error.statusCode == '429') {
-        return 'Demasiados intentos. Espera antes de continuar.';
-      }
-      if (mensaje.contains('expired') ||
-          mensaje.contains('invalid token') ||
-          mensaje.contains('token has expired or is invalid')) {
-        return 'El enlace vencio, ya fue utilizado o no es valido. Solicita uno nuevo.';
-      }
-      if (mensaje.contains('same password') || mensaje.contains('different')) {
-        return 'Elige una contrasena diferente de la anterior.';
-      }
-      if (mensaje.contains('password')) {
-        return 'La contrasena debe cumplir los requisitos de seguridad de tu cuenta.';
-      }
-      return 'Supabase no pudo validar la solicitud. Comprueba tu conexion y el enlace del correo.';
-    }
-    return 'No se pudo completar la solicitud. Comprueba tu conexion e intentalo nuevamente.';
+    return TraductorErroresSupabase.traducirErrorAutenticacion(
+      error,
+      accionPorDefecto: 'No pudimos validar tu solicitud en este momento. Comprueba tu conexión o solicita un enlace nuevo.',
+    );
   }
 }

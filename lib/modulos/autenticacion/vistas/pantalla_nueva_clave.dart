@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
+import 'package:boom/nucleo/utilidades/traductor_errores_supabase.dart';
 import 'package:boom/modulos/autenticacion/modelos/enlace_autenticacion.dart';
 import 'package:boom/modulos/autenticacion/servicios/servicio_enlace_autenticacion.dart';
 import 'package:boom/modulos/autenticacion/controladores/controlador_nueva_clave.dart';
@@ -97,7 +98,7 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
           ),
           title: const Text('Contraseña actualizada'),
           content: const Text(
-            'Supabase guardó tu nueva contraseña. Inicia sesión para continuar.',
+            'Tu contraseña se actualizó correctamente. Inicia sesión para continuar.',
           ),
           actions: [
             TextButton(
@@ -309,15 +310,11 @@ class _PantallaNuevaClaveState extends State<PantallaNuevaClave> {
                                     : 'Mostrar contraseña',
                               ),
                             ),
-                            validator: (valor) {
-                              if (valor == null || valor.isEmpty) {
-                                return 'Por favor confirma tu nueva contraseña';
-                              }
-                              if (valor != _controladorNuevaClave.text) {
-                                return 'Las contraseñas no coinciden';
-                              }
-                              return null;
-                            },
+                            validator: (valor) =>
+                                TraductorErroresSupabase.validarConfirmacionClave(
+                                  valor,
+                                  _controladorNuevaClave.text,
+                                ),
                           ),
                           const SizedBox(height: 28),
 

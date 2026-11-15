@@ -10,6 +10,7 @@ class TarjetaProfesional extends StatelessWidget {
   final bool esFavorito;
   final VoidCallback alAlternarFavorito;
   final VoidCallback alVerPerfil;
+  final bool mostrarDireccionConsultorio;
 
   const TarjetaProfesional({
     super.key,
@@ -17,7 +18,29 @@ class TarjetaProfesional extends StatelessWidget {
     required this.esFavorito,
     required this.alAlternarFavorito,
     required this.alVerPerfil,
+    this.mostrarDireccionConsultorio = false,
   });
+
+  String get _textoEspecialidades {
+    if (mostrarDireccionConsultorio && profesional.especialidades.isNotEmpty) {
+      return profesional.especialidades.join(', ');
+    }
+    return profesional.especialidad;
+  }
+
+  String get _textoUbicacion {
+    if (mostrarDireccionConsultorio) {
+      final direccion = profesional.direccionConsultorio.trim();
+      if (direccion.isNotEmpty) {
+        return direccion;
+      }
+      if (profesional.modalidad.trim().toLowerCase() == 'virtual') {
+        return 'Modalidad virtual';
+      }
+      return 'Dirección por confirmar en Riobamba';
+    }
+    return profesional.distanciaTexto;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,15 +80,37 @@ class TarjetaProfesional extends StatelessWidget {
                         width: 1.0,
                       ),
                     ),
-                    child: Center(
-                      child: Text(
-                        _obtenerIniciales(profesional.nombre),
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: TemaPsicobloom.colorPrincipal,
-                        ),
-                      ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(13),
+                      child:
+                          (profesional.fotoUrl != null &&
+                              profesional.fotoUrl!.trim().isNotEmpty)
+                          ? Image.network(
+                              profesional.fotoUrl!.trim(),
+                              width: 58,
+                              height: 58,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => Center(
+                                child: Text(
+                                  _obtenerIniciales(profesional.nombre),
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: TemaPsicobloom.colorPrincipal,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Center(
+                              child: Text(
+                                _obtenerIniciales(profesional.nombre),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: TemaPsicobloom.colorPrincipal,
+                                ),
+                              ),
+                            ),
                     ),
                   ),
                   if (profesional.estaDisponible)
@@ -103,7 +148,7 @@ class TarjetaProfesional extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      profesional.especialidad,
+                      _textoEspecialidades,
                       style: const TextStyle(
                         fontSize: 13,
                         color: TemaPsicobloom.colorTextoSecundario,
@@ -121,7 +166,7 @@ class TarjetaProfesional extends StatelessWidget {
                         const SizedBox(width: 3),
                         Flexible(
                           child: Text(
-                            profesional.distanciaTexto,
+                            _textoUbicacion,
                             style: const TextStyle(
                               fontSize: 12,
                               color: TemaPsicobloom.colorTextoSecundario,

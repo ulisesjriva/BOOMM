@@ -130,8 +130,8 @@ class ControladorVerificarCorreo extends ChangeNotifier {
       }
       _confirmadoDesdeEnlace = true;
       _mensajeEnlace = correo.isEmpty
-          ? 'Supabase confirmó tu correo. Ya puedes iniciar sesión.'
-          : 'Supabase confirmó el correo $correo. Ya puedes iniciar sesión.';
+          ? 'Tu correo electrónico ha sido confirmado. Ya puedes iniciar sesión.'
+          : 'Tu correo $correo ha sido confirmado. Ya puedes iniciar sesión.';
       return true;
     } catch (error) {
       if (!_cerrado) {

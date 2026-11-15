@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 
+import 'package:boom/configuracion/configuracion_supabase.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
 import 'package:boom/modulos/paciente/componentes/barra_navegacion_paciente.dart';
 import 'package:boom/modulos/paciente/componentes/tarjeta_profesional.dart';
+import 'package:boom/modelos/perfil_usuario.dart';
 import 'package:boom/modelos/profesional.dart';
 import 'package:boom/datos/profesionales_simulados.dart';
+import 'package:boom/modulos/autenticacion/servicios/servicio_sesion.dart';
 import 'package:boom/modulos/paciente/controladores/gestor_favoritos.dart';
+import 'package:boom/modulos/paciente/servicios/servicio_citas_paciente.dart';
+import 'package:boom/repositorios/repositorio_profesionales.dart';
+import 'package:boom/repositorios/repositorio_profesionales_supabase.dart';
 
 import 'pantalla_buscar_profesionales.dart';
+import 'pantalla_mapa_profesionales.dart';
+import 'pantalla_mis_citas_paciente.dart';
+import 'pantalla_perfil_paciente.dart';
+import 'pantalla_perfil_publico_profesional.dart';
 
 /// Pantalla 5: Inicio del paciente.
 /// Representa la interfaz principal a la que accede el paciente tras autenticarse.
@@ -16,15 +26,79 @@ import 'pantalla_buscar_profesionales.dart';
 /// accesos rapidos y profesionales recomendados cercanos a Riobamba.
 class PantallaInicioPaciente extends StatefulWidget {
   final String nombrePaciente;
+  final PerfilUsuario? perfilInicial;
+  final ServicioSesion servicioSesion;
+  final RepositorioProfesionales? repositorio;
+  final ServicioCitasPaciente? servicioCitas;
 
-  const PantallaInicioPaciente({super.key, this.nombrePaciente = 'María'});
+  const PantallaInicioPaciente({
+    super.key,
+    this.nombrePaciente = 'María',
+    this.perfilInicial,
+    this.servicioSesion = const ServicioSesion(),
+    this.repositorio,
+    this.servicioCitas,
+  });
 
   @override
   State<PantallaInicioPaciente> createState() => _PantallaInicioPacienteState();
 }
 
 class _PantallaInicioPacienteState extends State<PantallaInicioPaciente> {
-  int _indicePestana = 0;
+  final int _indicePestana = 0;
+  PerfilUsuario? _perfilActual;
+  List<Profesional> _profesionalesReales = const <Profesional>[];
+  bool _estaCargandoProfesionales = false;
+  String? _mensajeErrorProfesionales;
+
+  bool get _usaDatosReales =>
+      widget.repositorio != null || ConfiguracionSupabase.estaConfigurado;
+
+  bool get _habilitaPerfilPublico =>
+      _usaDatosReales || widget.perfilInicial != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _perfilActual = widget.perfilInicial;
+    if (_usaDatosReales) {
+      _cargarProfesionalesReales();
+    }
+  }
+
+  Future<void> _cargarProfesionalesReales() async {
+    setState(() {
+      _estaCargandoProfesionales = true;
+      _mensajeErrorProfesionales = null;
+    });
+    try {
+      final repositorio =
+          widget.repositorio ?? RepositorioProfesionalesSupabase();
+      final resultados = await repositorio.obtenerProfesionales();
+      if (mounted) {
+        setState(() {
+          _profesionalesReales = resultados;
+          _estaCargandoProfesionales = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _estaCargandoProfesionales = false;
+          _mensajeErrorProfesionales =
+              'No se pudo cargar el directorio de profesionales.';
+        });
+      }
+    }
+  }
+
+  String get _nombreMostrado {
+    final nombre = _perfilActual?.nombre.trim();
+    if (nombre != null && nombre.isNotEmpty) {
+      return nombre;
+    }
+    return widget.nombrePaciente;
+  }
 
   void _alternarFavorito(String idProfesional) {
     final bool esFavorito = GestorFavoritos.instancia.alternarFavorito(
@@ -41,7 +115,8 @@ class _PantallaInicioPacienteState extends State<PantallaInicioPaciente> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const PantallaBuscarProfesionales(),
+        builder: (context) =>
+            PantallaBuscarProfesionales(repositorio: widget.repositorio),
       ),
     );
   }
@@ -96,24 +171,59 @@ class _PantallaInicioPacienteState extends State<PantallaInicioPaciente> {
         _navegarABuscar();
         break;
       case 2:
-        _mostrarMensajeInformativo(
-          'El Mapa interactivo de profesionales se implementará en la Etapa 4.',
+        Navigator.push(
+          context,
+          MaterialPageRoute<void>(
+            builder: (context) => PantallaMapaProfesionales(
+              repositorio: widget.repositorio,
+              perfilInicial: _perfilActual,
+              servicioSesion: widget.servicioSesion,
+            ),
+          ),
         );
         break;
       case 3:
-        _mostrarMensajeInformativo(
-          'El módulo de Mis citas corresponde a etapas posteriores del equipo.',
+        Navigator.push(
+          context,
+          MaterialPageRoute<void>(
+            builder: (context) => PantallaMisCitasPaciente(
+              servicioCitas: widget.servicioCitas,
+              perfilInicial: _perfilActual,
+              servicioSesion: widget.servicioSesion,
+              repositorio: widget.repositorio,
+            ),
+          ),
         );
         break;
       case 4:
-        _mostrarMensajeInformativo(
-          'El perfil del paciente corresponde a etapas posteriores del equipo.',
+        Navigator.push(
+          context,
+          MaterialPageRoute<void>(
+            builder: (context) => PantallaPerfilPaciente(
+              perfilInicial:
+                  _perfilActual ??
+                  PerfilUsuario(
+                    id: 'paciente-sesion',
+                    nombre: _nombreMostrado,
+                    apellido: '',
+                    rol: 'paciente',
+                    aprobacion: 'no_aplica',
+                    cuentaActiva: true,
+                  ),
+              servicioSesion: widget.servicioSesion,
+              alActualizarPerfil: (nuevoPerfil) {
+                if (mounted) {
+                  setState(() {
+                    _perfilActual = nuevoPerfil;
+                  });
+                }
+              },
+            ),
+          ),
         );
         break;
       default:
-        setState(() {
-          _indicePestana = nuevoIndice;
-        });
+        break;
     }
   }
 
@@ -143,8 +253,10 @@ class _PantallaInicioPacienteState extends State<PantallaInicioPaciente> {
               const SizedBox(height: 26),
               _construirEncabezadoSeccionProfesionales(),
               const SizedBox(height: 12),
-              _construirAvisoDemostracion(),
-              const SizedBox(height: 14),
+              if (!_usaDatosReales) ...[
+                _construirAvisoDemostracion(),
+                const SizedBox(height: 14),
+              ],
               _construirListaProfesionales(),
               const SizedBox(height: 24),
             ],
@@ -263,7 +375,7 @@ class _PantallaInicioPacienteState extends State<PantallaInicioPaciente> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Hola, ${widget.nombrePaciente} 👋',
+                  'Hola, $_nombreMostrado 👋',
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -507,11 +619,69 @@ class _PantallaInicioPacienteState extends State<PantallaInicioPaciente> {
     );
   }
 
-  /// Lista vertical de tarjetas de profesionales basada en el modelo simulado.
+  /// Lista vertical de tarjetas de profesionales conectada a datos reales o demostracion.
   Widget _construirListaProfesionales() {
-    final List<Profesional> profesionalesMostrados = profesionalesSimulados
-        .take(3)
-        .toList();
+    if (_usaDatosReales && _estaCargandoProfesionales) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 28),
+        child: Center(
+          child: CircularProgressIndicator(
+            color: TemaPsicobloom.colorPrincipal,
+          ),
+        ),
+      );
+    }
+
+    if (_usaDatosReales && _mensajeErrorProfesionales != null) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: TemaPsicobloom.colorFondoError,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          children: [
+            Text(
+              _mensajeErrorProfesionales!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: TemaPsicobloom.colorError,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: _cargarProfesionalesReales,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final List<Profesional> profesionalesMostrados = _usaDatosReales
+        ? _profesionalesReales.take(3).toList()
+        : profesionalesSimulados.take(3).toList();
+
+    if (_usaDatosReales && profesionalesMostrados.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: TemaPsicobloom.colorSuperficie,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: TemaPsicobloom.colorBorde),
+        ),
+        child: const Text(
+          'Aún no hay profesionales aprobados publicados en el directorio.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 13.5,
+            color: TemaPsicobloom.colorTextoSecundario,
+          ),
+        ),
+      );
+    }
 
     return ValueListenableBuilder<Set<String>>(
       valueListenable: GestorFavoritos.instancia.favoritos,
@@ -527,9 +697,21 @@ class _PantallaInicioPacienteState extends State<PantallaInicioPaciente> {
                 esFavorito: esFavorito,
                 alAlternarFavorito: () => _alternarFavorito(profesional.id),
                 alVerPerfil: () {
-                  _mostrarMensajeInformativo(
-                    'La visualización de perfil detallado se implementará en etapas posteriores.',
-                  );
+                  if (_habilitaPerfilPublico) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => PantallaPerfilPublicoProfesional(
+                          profesional: profesional,
+                          servicioCitas: widget.servicioCitas,
+                        ),
+                      ),
+                    );
+                  } else {
+                    _mostrarMensajeInformativo(
+                      'La visualización de perfil detallado se implementará en etapas posteriores.',
+                    );
+                  }
                 },
               ),
             );

@@ -46,3 +46,9 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Archivos locales de configuracion con claves de entorno (nunca versionar)
+configuracion_supabase.json
+configuracion_supabase*.json
+.env
+.env.*

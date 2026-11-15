@@ -35,9 +35,12 @@ Un `TextEditingController` administra un campo de texto; no sustituye a un contr
 | `lib/repositorios/` | Contrato de consultas e implementación simulada de profesionales. |
 | `lib/nucleo/componentes/` | Fondo decorativo e icono de Google compartidos. |
 | `lib/nucleo/tema/` | Paleta y tema visual de PsicoBloom. |
-| `lib/modulos/autenticacion/` | Vistas, controladores, servicios y modelo de enlaces de autenticación. |
-| `lib/modulos/paciente/` | Vistas, componentes y controladores del paciente. |
-| `test/` | Pruebas automatizadas de modelos, coordinación y widgets. |
+| `lib/modulos/autenticacion/` | Vistas, controladores, servicios y modelo de enlaces de autenticación, sesión persistente y enrutamiento por rol. |
+| `lib/modulos/paciente/` | Vistas, componentes, servicios y controladores del paciente (inicio, búsqueda conectada, perfil propio y perfil público profesional). |
+| `lib/modulos/profesional/` | Vistas, controladores, servicios y modelos del profesional (inicio, perfil profesional, fotografía en Supabase Storage, especialidades, servicios y ubicación del consultorio). |
+| `lib/modulos/administrador/` | Vistas, controladores y servicios del rol administrador (inicio funcional, revisión de profesionales pendientes y control de estado de cuentas). |
+| `supabase/sql/` | Scripts versionados de estructura, RLS, funciones RPC, migración aditiva de perfiles/especialidades/ubicación y verificación transaccional. |
+| `test/` | Pruebas automatizadas de modelos, controladores, repositorios y widgets. |
 | `web_autenticacion/` | Sitio auxiliar y configuración de Firebase Hosting. Se conserva separado de Flutter. |
 | `android/`, `ios/`, `web/`, `windows/`, `linux/`, `macos/` | Proyectos de plataforma de Flutter; no se reorganizaron como parte de MVC. |
 
@@ -55,10 +58,12 @@ Raíz: `lib/modulos/autenticacion/`.
 | `controlador_nueva_clave.dart` | `vistas/pantalla_nueva_clave.dart` | Validar explícitamente el enlace antes de permitir guardar la contraseña nueva. |
 | `controlador_verificar_correo.dart` | `vistas/pantalla_verificar_correo.dart` | Confirmar el enlace, consultar la sesión y el perfil, gestionar reenvíos y su espera de 60 segundos. |
 | `controlador_enlaces_autenticacion.dart` | `lib/main.dart` | Escuchar enlaces, esperar al arranque, controlar duplicados y conservar el último pendiente mientras hay un proceso activo. |
+| `controlador_sesion.dart` | `lib/main.dart`, `vistas/navegador_roles.dart` | Restaurar sesión persistente, resolver rol y estado activo/inactivo, diferenciar fallas de red y cerrar sesión limpiando el estado local. |
 
 | Servicio en `servicios/` | Responsabilidad conservada |
 | --- | --- |
-| `servicio_inicio_sesion.dart` | Autenticar y comprobar perfil y acceso al panel del paciente. |
+| `servicio_inicio_sesion.dart` | Autenticar y comprobar perfil y acceso para cuentas activas de paciente, profesional y administrador. |
+| `servicio_sesion.dart` | Resolver la sesión actual mediante `perfil_del_usuario_actual`, comprobar cuenta activa y ejecutar el cierre de sesión seguro. |
 | `servicio_registro.dart` | Registrar, solicitar reenvío y consultar confirmación y perfil propio. |
 | `servicio_recuperacion_clave.dart` | Solicitar el enlace de recuperación. |
 | `servicio_enlace_autenticacion.dart` | Confirmar o recuperar mediante un cliente temporal separado de la sesión global; verificar la identidad antes de guardar la clave. |
@@ -92,14 +97,56 @@ Raíz: `lib/modulos/paciente/`.
 
 | Ruta | Función |
 | --- | --- |
-| `vistas/pantalla_inicio_paciente.dart` | Inicio y accesos del paciente; conserva el listado de demostración. |
-| `vistas/pantalla_buscar_profesionales.dart` | Campos, filtros, resultados y navegación de búsqueda. |
+| `vistas/pantalla_inicio_paciente.dart` | Inicio y accesos del paciente; consulta profesionales reales cuando Supabase está configurado y conserva datos referenciales en modo demostración. |
+| `vistas/pantalla_buscar_profesionales.dart` | Campos, filtros, resultados y navegación al perfil público del profesional. |
+| `vistas/pantalla_perfil_paciente.dart` | Consulta, edición validada, guardado real en Supabase y cierre de sesión del paciente. |
+| `vistas/pantalla_perfil_publico_profesional.dart` | Visualización de datos públicos autorizados del profesional, especialidades, servicios, modalidad y ubicación en mapa. |
 | `controladores/controlador_buscar_profesionales.dart` | Cargar catálogos, coordinar consultas y descartar respuestas antiguas cuando ya existe una búsqueda posterior. |
-| `controladores/gestor_favoritos.dart` | Compartir favoritos en memoria entre las vistas. |
+| `controladores/controlador_perfil_paciente.dart` | Coordinar carga, validación y actualización del perfil del paciente. |
+| `controladores/gestor_favoritos.dart` | Compartir favoritos en memoria entre las vistas y limpiarlos al cerrar sesión. |
+| `servicios/servicio_perfil_paciente.dart` | Consultar `perfil_del_usuario_actual` y actualizar datos básicos mediante `actualizar_nombre_apellido`. |
 | `componentes/barra_navegacion_paciente.dart` | Navegación inferior reutilizable. |
-| `componentes/tarjeta_profesional.dart` | Presentación reutilizable de un profesional. |
+| `componentes/tarjeta_profesional.dart` | Presentación reutilizable de un profesional con soporte de fotografía y respaldo de iniciales. |
 
-El controlador de búsqueda recibe `RepositorioProfesionales`. La implementación actual es simulada y obtiene sus datos de `lib/datos/profesionales_simulados.dart`. Los favoritos permanecen en memoria, sin persistencia en Supabase. No se agregó un controlador artificial para duplicar las acciones visuales del inicio.
+## Módulo del profesional y módulo del administrador
+
+Raíz profesional: `lib/modulos/profesional/`.
+
+| Ruta | Función |
+| --- | --- |
+| `vistas/pantalla_inicio_profesional.dart` | Panel inicial del profesional con estado de aprobación, observación de rechazo si aplica, acceso a gestión de perfil y cierre de sesión. |
+| `vistas/pantalla_perfil_profesional.dart` | Edición completa del perfil profesional, fotografía, catálogo de especialidades, modalidad, servicios y ubicación del consultorio en mapa. |
+| `controladores/controlador_perfil_profesional.dart` | Coordinación de carga, validaciones, subida de fotografía, selección de especialidades activas y coordenadas del consultorio. |
+| `servicios/servicio_perfil_profesional.dart` | Acceso a `obtener_perfil_profesional_propio`, `actualizar_perfil_profesional_propio`, `actualizar_foto_profesional_propia` (respaldados sobre `public."Profesionales"` y `public."Usuarios"`) y carga de fotografía al bucket `fotos-profesionales` en Supabase Storage. |
+| `servicios/servicio_ubicacion_consultorio.dart` | Validación de coordenadas y obtención opcional de ubicación en primer plano con manejo de permisos (`geolocator`). |
+| `modelos/perfil_profesional.dart` | Modelo tipado del perfil propio del profesional. |
+
+Raíz administrador: `lib/modulos/administrador/`.
+
+| Ruta | Función |
+| --- | --- |
+| `vistas/pantalla_inicio_administrador.dart` | Inicio funcional del administrador con listado de profesionales pendientes, aprobación/rechazo y cierre de sesión. |
+| `controladores/controlador_administracion.dart` | Coordinación de consultas y decisiones administrativas. |
+| `servicios/servicio_administracion.dart` | Invocación de RPCs `listar_profesionales_pendientes`, `aprobar_profesional` y `cambiar_estado_cuenta`. |
+
+Repositorios compartidos en `lib/repositorios/`:
+- `repositorio_especialidades.dart`: consulta del catálogo persistente `public."Especialidades"` (`id_especialidad`, `nombre`, `descripcion`, `activa`) y guardado de la relación `public."ProfesionalEspecialidad"` (`id_profesional`, `id_especialidad`) mediante `guardar_especialidades_profesional`.
+- `repositorio_profesionales_supabase.dart`: implementación real de `RepositorioProfesionales` conectada con `directorio_profesionales_completo()` (con respaldo a `directorio_profesionales()`) y el catálogo `public."Especialidades"`.
+
+## Matriz de verificación (Cierre Iteración 1 e Inicio Iteración 2)
+
+> **Estado de integración remota**: Los scripts `05_perfiles_especialidades_ubicacion.sql` y `04_verificacion.sql`, así como los modelos, servicios y repositorios Flutter, fueron adaptados al esquema remoto real exportado en `esquema_real_psicobloom.json` (`public."Usuarios"`, `public."Pacientes"`, `public."Profesionales"`, `public."Administradores"`, `public."Roles"`, `public."Especialidades"`, `public."ProfesionalEspecialidad"`, `public."Servicios"`, `psicobloom_interno` y las RPC vigentes). La ejecución remota en Supabase SQL Editor y las pruebas en emulador permanecen pendientes de revisión y autorización.
+
+| ID Planner | Funcionalidad | Archivos principales | Estado en código local y pruebas simuladas | Pendiente de integración con base remota y emulador |
+| --- | --- | --- | --- | --- |
+| `I1-04` | Sesión persistente, resolución de rol (`paciente`, `profesional`, `administrador`), bloqueo de cuentas inactivas y restricciones de acceso por rol | `servicio_sesion.dart`, `controlador_sesion.dart`, `navegador_roles.dart`, `pantalla_estado_cuenta.dart` | Contrato verificado contra `esquema_real_psicobloom.json` (`perfil_del_usuario_actual()` y `_rol_activo()`). Pruebas locales en `test/controladores/controlador_sesion_test.dart`. | Comprobar restauración de sesión en emulador contra el proyecto remoto. |
+| `I1-05` | Perfil básico del paciente y cierre de sesión seguro (con limpieza de estado local e impedimento de regresar a pantallas privadas) | `servicio_perfil_paciente.dart`, `controlador_perfil_paciente.dart`, `pantalla_perfil_paciente.dart`, `servicio_sesion.dart` | Contrato verificado contra `perfil_del_usuario_actual()` y `actualizar_nombre_apellido(text,text)`. Pruebas locales en `test/controladores/controlador_perfil_paciente_test.dart`. | Ejecutar recorrido de edición y cierre de sesión en emulador con cuenta real de paciente. |
+| `I1-06` | Perfil básico del profesional y carga/recuperación de fotografía de perfil | `perfil_profesional.dart`, `servicio_perfil_profesional.dart`, `controlador_perfil_profesional.dart`, `pantalla_perfil_profesional.dart` | Adaptado a `public."Profesionales"`, `public."Usuarios"` y RPCs `obtener_perfil_profesional_propio`, `actualizar_perfil_profesional_propio`, `actualizar_foto_profesional_propia` + bucket `fotos-profesionales`. | Ejecutar `05_perfiles_especialidades_ubicacion.sql` en Supabase (creación del bucket y RPCs) y probar carga de foto en emulador. |
+| `I1-07` | Pruebas y evidencias de los tres roles (`paciente`, `profesional`, `administrador`) | `test/controladores/controlador_sesion_test.dart`, `04_verificacion.sql`, `pantalla_inicio_administrador.dart`, `pantalla_inicio_profesional.dart` | `04_verificacion.sql` adaptado a las tablas reales (`"Usuarios"`, `"Pacientes"`, `"Profesionales"`, `"Administradores"`, `"Especialidades"`, `"ProfesionalEspecialidad"`, `"Servicios"`) con `SET LOCAL ROLE` y `ROLLBACK`. Pruebas locales aprobadas (106/106). | Ejecutar `04_verificacion.sql` en Supabase SQL Editor y registrar evidencias con cuentas reales de los 3 roles. |
+| `I2-01` | Catálogo persistente de especialidades y relación profesional-especialidad | `especialidad.dart`, `repositorio_especialidades.dart`, `05_perfiles_especialidades_ubicacion.sql` | Adaptado a `public."Especialidades"` (`id_especialidad`) y `public."ProfesionalEspecialidad"` (`id_profesional`, `id_especialidad`). | Ejecutar `05_perfiles_especialidades_ubicacion.sql` en Supabase y verificar catálogo en la app. |
+| `I2-02` | Servicios psicológicos, modalidad (`Presencial`, `Virtual`, `Híbrida`) y perfil público con datos autorizados | `pantalla_perfil_publico_profesional.dart`, `profesional.dart`, `05_perfiles_especialidades_ubicacion.sql` | Adaptado a `public."Profesionales"` (`modalidad`), `public."Servicios"` (`id_servicio`, `id_profesional`, `nombre_servicio`, `activo`) y `directorio_profesionales_completo()`. | Ejecutar `05_perfiles_especialidades_ubicacion.sql` y comprobar perfil público con datos reales. |
+| `I2-03` | Ubicación del consultorio, validación de coordenadas, permisos en primer plano y marcador en mapa | `servicio_ubicacion_consultorio.dart`, `pantalla_perfil_profesional.dart`, `pantalla_perfil_publico_profesional.dart`, `AndroidManifest.xml` | Adaptado a `public."Profesionales"` (`direccion_consultorio`, `latitud`, `longitud` y restricción `Profesionales_c_e41e99df`). | Probar permisos de ubicación y mapa en emulador/dispositivo Android. |
+| `I2-04` | Búsqueda y filtros del directorio conectados con datos reales de Supabase | `repositorio_profesionales_supabase.dart`, `pantalla_buscar_profesionales.dart`, `pantalla_inicio_paciente.dart` | Adaptado a `directorio_profesionales_completo()` (con respaldo a `directorio_profesionales()`) y `public."Especialidades"`. | Comprobar búsqueda conectada tras ejecutar `05_perfiles_especialidades_ubicacion.sql`. |
 
 ## Reglas para continuar el desarrollo
 

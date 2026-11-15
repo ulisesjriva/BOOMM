@@ -8,6 +8,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'configuracion/configuracion_supabase.dart';
 import 'modulos/autenticacion/modelos/enlace_autenticacion.dart';
 import 'modulos/autenticacion/controladores/controlador_enlaces_autenticacion.dart';
+import 'modulos/autenticacion/servicios/servicio_sesion.dart';
+import 'modulos/autenticacion/vistas/navegador_roles.dart';
+import 'modulos/autenticacion/vistas/pantalla_estado_cuenta.dart';
 import 'nucleo/tema/tema_psicobloom.dart';
 import 'modulos/autenticacion/vistas/pantalla_carga.dart';
 import 'modulos/autenticacion/vistas/pantalla_iniciar_sesion.dart';
@@ -59,12 +62,14 @@ class AplicacionPsicoBloom extends StatefulWidget {
     super.key,
     this.flujoEnlaces,
     this.obtenerEnlaceInicial,
+    this.servicioSesion = const ServicioSesion(),
   });
 
   /// Permite probar la navegacion sin abrir canales nativos de Android.
   /// Si no se proporciona, la aplicacion usa app_links como antes.
   final Stream<Uri>? flujoEnlaces;
   final Future<Uri?> Function()? obtenerEnlaceInicial;
+  final ServicioSesion servicioSesion;
 
   @override
   State<AplicacionPsicoBloom> createState() => _AplicacionPsicoBloomState();
@@ -74,11 +79,14 @@ class _AplicacionPsicoBloomState extends State<AplicacionPsicoBloom> {
   final _navegador = GlobalKey<NavigatorState>();
   final _mensajero = GlobalKey<ScaffoldMessengerState>();
   final _controladorEnlaces = ControladorEnlacesAutenticacion();
+  Future<ResultadoResolucionSesion>? _resolucionSesion;
+  bool _resolviendoArranque = false;
 
   @override
   void initState() {
     super.initState();
     _controladorEnlaces.addListener(_atenderCambiosDeEnlaces);
+    _resolucionSesion = widget.servicioSesion.resolverSesionActual();
     if (widget.flujoEnlaces != null ||
         widget.obtenerEnlaceInicial != null ||
         (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)) {
@@ -120,26 +128,99 @@ class _AplicacionPsicoBloomState extends State<AplicacionPsicoBloom> {
     _abrirPendiente();
   }
 
-  void _finalizarArranque() {
-    if (!mounted) {
+  Future<void> _finalizarArranque() async {
+    if (!mounted || _resolviendoArranque) {
       return;
     }
-    if (_controladorEnlaces.finalizarArranque()) {
-      _abrirPendiente();
-    } else {
-      _navegador.currentState?.pushReplacement<void, void>(
-        MaterialPageRoute<void>(builder: (_) => const PantallaOpcionesAcceso()),
-      );
+    _resolviendoArranque = true;
+    try {
+      // Los enlaces de confirmacion y recuperacion conservan la prioridad
+      // para que una sesion persistente nunca interrumpa un cambio de clave.
+      if (_controladorEnlaces.finalizarArranque()) {
+        _abrirPendiente();
+        return;
+      }
+
+      final resultado =
+          await (_resolucionSesion ??
+              widget.servicioSesion.resolverSesionActual());
+      if (!mounted) {
+        return;
+      }
+      // Si llego un enlace mientras se resolvia la sesion, tiene prioridad.
+      final enlaceTardio = _controladorEnlaces.tomarEnlacePendiente();
+      if (enlaceTardio != null) {
+        _abrirEnlace(enlaceTardio);
+        return;
+      }
+
+      _navegarSegunResultadoSesion(resultado);
+    } finally {
+      _resolviendoArranque = false;
     }
   }
 
-  void _abrirPendiente() {
+  void _navegarSegunResultadoSesion(ResultadoResolucionSesion resultado) {
     final navegador = _navegador.currentState;
-    if (navegador == null) {
-      return;
+    if (navegador == null) return;
+
+    if (resultado.mensaje != null &&
+        resultado.estado == EstadoResolucionSesion.sinSesion) {
+      _mensajero.currentState?.showSnackBar(
+        SnackBar(content: Text(resultado.mensaje!)),
+      );
     }
+
+    final Widget destino = switch (resultado.estado) {
+      EstadoResolucionSesion.autenticado when resultado.perfil != null =>
+        NavegadorRoles.construirDestinoPorPerfil(
+          resultado.perfil!,
+          servicioSesion: widget.servicioSesion,
+        ),
+      EstadoResolucionSesion.cuentaInactiva => PantallaEstadoCuenta(
+        perfil: resultado.perfil,
+        mensaje:
+            resultado.mensaje ??
+            'Tu cuenta está inactiva. Contacta al administrador.',
+        servicioSesion: widget.servicioSesion,
+      ),
+      EstadoResolucionSesion.errorConexion => PantallaEstadoCuenta(
+        titulo: 'Error de conexión',
+        mensaje:
+            resultado.mensaje ??
+            'No se pudo comprobar tu sesión por un problema de red.',
+        servicioSesion: widget.servicioSesion,
+        alReintentar: () {
+          _resolucionSesion = widget.servicioSesion.resolverSesionActual();
+          unawaited(_reintentarSesion());
+        },
+      ),
+      _ => const PantallaOpcionesAcceso(),
+    };
+
+    navegador.pushAndRemoveUntil<void>(
+      MaterialPageRoute<void>(builder: (_) => destino),
+      (_) => false,
+    );
+  }
+
+  Future<void> _reintentarSesion() async {
+    final resultado = await widget.servicioSesion.resolverSesionActual();
+    if (!mounted) return;
+    _navegarSegunResultadoSesion(resultado);
+  }
+
+  void _abrirPendiente() {
     final enlace = _controladorEnlaces.tomarEnlacePendiente();
     if (enlace == null) {
+      return;
+    }
+    _abrirEnlace(enlace);
+  }
+
+  void _abrirEnlace(EnlaceAutenticacion enlace) {
+    final navegador = _navegador.currentState;
+    if (navegador == null) {
       return;
     }
     final Widget pantalla = switch (enlace.tipo) {

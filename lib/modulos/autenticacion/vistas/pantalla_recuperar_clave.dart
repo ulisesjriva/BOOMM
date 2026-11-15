@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
+import 'package:boom/nucleo/utilidades/traductor_errores_supabase.dart';
 import 'package:boom/modulos/autenticacion/servicios/servicio_recuperacion_clave.dart';
 import 'package:boom/modulos/autenticacion/controladores/controlador_recuperar_clave.dart';
 
@@ -62,7 +63,18 @@ class _PantallaRecuperarClaveState extends State<PantallaRecuperarClave> {
       if (mensaje == null) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(mensaje), duration: const Duration(seconds: 6)),
+        SnackBar(
+          backgroundColor: TemaPsicobloom.colorPrincipalOscuro,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          content: Text(
+            mensaje,
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+          ),
+          duration: const Duration(seconds: 6),
+        ),
       );
       return;
     }
@@ -219,16 +231,7 @@ class _PantallaRecuperarClaveState extends State<PantallaRecuperarClave> {
                               hintText: 'tu@correo.com',
                               prefixIcon: Icon(Icons.mail_outline_rounded),
                             ),
-                            validator: (valor) {
-                              if (valor == null || valor.trim().isEmpty) {
-                                return 'Por favor ingresa tu correo electrónico';
-                              }
-                              if (!valor.contains('@') ||
-                                  !valor.contains('.')) {
-                                return 'Ingresa un formato de correo válido';
-                              }
-                              return null;
-                            },
+                            validator: TraductorErroresSupabase.validarCorreo,
                           ),
                           const SizedBox(height: 24),
 

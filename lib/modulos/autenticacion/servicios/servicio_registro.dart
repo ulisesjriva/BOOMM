@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:boom/configuracion/configuracion_supabase.dart';
 import 'package:boom/modelos/perfil_usuario.dart';
+import 'package:boom/nucleo/utilidades/traductor_errores_supabase.dart';
 
 class ErrorRegistro implements Exception {
   final String mensaje;
@@ -21,7 +22,7 @@ class ServicioRegistro {
   SupabaseClient get _cliente {
     if (!ConfiguracionSupabase.estaConfigurado) {
       throw const ErrorRegistro(
-        'Falta la configuración de Supabase. Inicia la aplicación con la URL y la clave pública.',
+        'El servicio de registro no está disponible en este momento. Inténtalo más tarde.',
       );
     }
     return Supabase.instance.client;
@@ -39,6 +40,11 @@ class ServicioRegistro {
         'La contraseña debe contener al menos 11 caracteres.',
       );
     }
+    if (!TraductorErroresSupabase.cumpleRequisitosClave(clave)) {
+      throw const ErrorRegistro(
+        'Tu contraseña aún no cumple los requisitos. Usa al menos 11 caracteres e incluye mayúsculas, minúsculas, números y un símbolo.',
+      );
+    }
     final respuesta = await _cliente.auth.signUp(
       email: correo.trim(),
       password: clave,
@@ -51,7 +57,7 @@ class ServicioRegistro {
     );
     if (respuesta.user == null) {
       throw const ErrorRegistro(
-        'Supabase no devolvió una respuesta de registro válida.',
+        'No pudimos completar tu registro en este momento. Inténtalo nuevamente en unos minutos.',
       );
     }
     // Una respuesta aceptada no demuestra entrega de correo ni cuenta nueva:
@@ -81,7 +87,7 @@ class ServicioRegistro {
     final datos = await cliente.rpc('perfil_del_usuario_actual');
     if (datos is! List || datos.length != 1 || datos.first is! Map) {
       throw const ErrorRegistro(
-        'El correo está confirmado, pero no se encontró el perfil. Debemos revisar el trigger y los permisos.',
+        'Tu correo está confirmado, pero aún no pudimos cargar tu perfil. Intenta iniciar sesión en unos instantes.',
       );
     }
     final perfil = PerfilUsuario.desdeMapa(
@@ -89,7 +95,7 @@ class ServicioRegistro {
     );
     if (perfil.id != usuario.id) {
       throw const ErrorRegistro(
-        'El perfil recibido no corresponde a la sesión actual.',
+        'La sesión actual no coincide con la cuenta consultada. Inicia sesión nuevamente.',
       );
     }
     return perfil;
@@ -98,16 +104,9 @@ class ServicioRegistro {
   /// Traduce errores sin escribir tokens, claves ni contrasenas en consola.
   static String explicarError(Object error) {
     if (error is ErrorRegistro) return error.mensaje;
-    if (error is AuthException) {
-      if (error.statusCode == '429') {
-        return 'Se alcanzó el límite de solicitudes o correos. Espera antes de volver a intentarlo.';
-      }
-      return 'Supabase Auth: ${error.message}';
-    }
-    if (error is PostgrestException) {
-      return 'No se pudo consultar el perfil: ${error.message}';
-    }
-    if (error is FormatException) return error.message;
-    return 'No se pudo completar la solicitud. Comprueba la conexión y revisa el correo antes de repetir el registro.';
+    return TraductorErroresSupabase.traducirErrorAutenticacion(
+      error,
+      accionPorDefecto: 'No pudimos completar tu registro en este momento. Inténtalo nuevamente en unos minutos.',
+    );
   }
 }

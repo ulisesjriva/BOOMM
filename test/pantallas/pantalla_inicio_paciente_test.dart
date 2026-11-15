@@ -126,18 +126,16 @@ void main() {
     await probador.pumpWidget(crearPantallaDePrueba());
     await probador.pump();
 
-    // Pulsa en la pestana Mapa
+    // Pulsa en la pestana Mapa y navega a la pantalla preliminar del mapa
     await probador.tap(find.text('Mapa'));
-    await probador.pump();
+    await probador.pumpAndSettle();
 
-    expect(
-      find.text(
-        'El Mapa interactivo de profesionales se implementará en la Etapa 4.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('Profesionales en Riobamba'), findsOneWidget);
+    expect(find.byKey(const Key('areaPreliminarMapa')), findsOneWidget);
 
-    // Pulsa en la pestana Buscar y navega a la pantalla 6
+    // Regresa a Inicio y pulsa en la pestana Buscar para navegar a la pantalla 6
+    await probador.tap(find.text('Inicio'));
+    await probador.pumpAndSettle();
     await probador.tap(find.text('Buscar'));
     await probador.pumpAndSettle();
 

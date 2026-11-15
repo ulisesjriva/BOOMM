@@ -232,26 +232,24 @@ void main() {
     },
   );
 
-  testWidgets('Navegacion entre pestanas muestra mensajes informativos', (
-    WidgetTester probador,
-  ) async {
-    probador.view.physicalSize = const Size(1080, 2400);
-    probador.view.devicePixelRatio = 2.0;
-    addTearDown(probador.view.resetPhysicalSize);
-    addTearDown(probador.view.resetDevicePixelRatio);
+  testWidgets(
+    'Navegacion entre pestanas abre la pantalla preliminar del mapa',
+    (WidgetTester probador) async {
+      probador.view.physicalSize = const Size(1080, 2400);
+      probador.view.devicePixelRatio = 2.0;
+      addTearDown(probador.view.resetPhysicalSize);
+      addTearDown(probador.view.resetDevicePixelRatio);
 
-    await probador.pumpWidget(crearPantallaDePrueba());
-    await probador.pumpAndSettle();
+      await probador.pumpWidget(crearPantallaDePrueba());
+      await probador.pumpAndSettle();
 
-    // Pulsa Mapa
-    await probador.tap(find.text('Mapa'));
-    await probador.pump();
+      // Pulsa Mapa y navega a PantallaMapaProfesionales
+      await probador.tap(find.text('Mapa'));
+      await probador.pumpAndSettle();
 
-    expect(
-      find.text(
-        'El Mapa interactivo de profesionales se implementará en la Etapa 4.',
-      ),
-      findsOneWidget,
-    );
-  });
+      expect(find.text('Profesionales en Riobamba'), findsOneWidget);
+      expect(find.byKey(const Key('areaPreliminarMapa')), findsOneWidget);
+      expect(find.text('Profesionales disponibles'), findsOneWidget);
+    },
+  );
 }

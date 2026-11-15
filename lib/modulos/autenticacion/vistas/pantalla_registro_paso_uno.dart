@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
+import 'package:boom/nucleo/utilidades/traductor_errores_supabase.dart';
 import 'package:boom/modulos/autenticacion/vistas/pantalla_iniciar_sesion.dart';
 import 'package:boom/modulos/autenticacion/vistas/pantalla_registro_paso_dos.dart';
 
@@ -156,10 +157,10 @@ class _PantallaRegistroPasoUnoState extends State<PantallaRegistroPasoUno> {
                           ),
                           validator: (valor) {
                             if (valor == null || valor.trim().isEmpty) {
-                              return 'Por favor ingresa tu nombre';
+                              return 'Ingresa tu nombre para continuar.';
                             }
                             if (valor.trim().length < 2) {
-                              return 'El nombre debe tener al menos 2 caracteres';
+                              return 'El nombre debe tener al menos 2 caracteres.';
                             }
                             return null;
                           },
@@ -186,10 +187,10 @@ class _PantallaRegistroPasoUnoState extends State<PantallaRegistroPasoUno> {
                           ),
                           validator: (valor) {
                             if (valor == null || valor.trim().isEmpty) {
-                              return 'Por favor ingresa tu apellido';
+                              return 'Ingresa tu apellido para continuar.';
                             }
                             if (valor.trim().length < 2) {
-                              return 'El apellido debe tener al menos 2 caracteres';
+                              return 'El apellido debe tener al menos 2 caracteres.';
                             }
                             return null;
                           },
@@ -214,15 +215,7 @@ class _PantallaRegistroPasoUnoState extends State<PantallaRegistroPasoUno> {
                             hintText: 'tu@correo.com',
                             prefixIcon: Icon(Icons.mail_outline_rounded),
                           ),
-                          validator: (valor) {
-                            if (valor == null || valor.trim().isEmpty) {
-                              return 'Por favor ingresa tu correo electrónico';
-                            }
-                            if (!valor.contains('@') || !valor.contains('.')) {
-                              return 'Ingresa un formato de correo válido';
-                            }
-                            return null;
-                          },
+                          validator: TraductorErroresSupabase.validarCorreo,
                         ),
                         const SizedBox(height: 32),
 
@@ -241,8 +234,9 @@ class _PantallaRegistroPasoUnoState extends State<PantallaRegistroPasoUno> {
                         const SizedBox(height: 24),
 
                         // Enlace a inicio de sesion
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             const Text(
                               '¿Ya tienes una cuenta? ',

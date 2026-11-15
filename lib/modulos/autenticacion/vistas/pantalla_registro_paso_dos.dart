@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
+import 'package:boom/nucleo/utilidades/traductor_errores_supabase.dart';
 import 'package:boom/modulos/autenticacion/vistas/pantalla_verificar_correo.dart';
 import 'package:boom/modulos/autenticacion/servicios/servicio_registro.dart';
 import 'package:boom/modulos/autenticacion/controladores/controlador_registro.dart';
@@ -86,20 +87,22 @@ class _PantallaRegistroPasoDosState extends State<PantallaRegistroPasoDos> {
     if (!aceptado) {
       final mensaje = _controlador.mensajeError;
       if (mensaje == null) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        !_aceptaTerminos
-            ? SnackBar(
-                backgroundColor: TemaPsicobloom.colorAdvertencia,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                content: Text(
-                  mensaje,
-                  style: const TextStyle(color: Colors.white),
-                ),
-              )
-            : SnackBar(content: Text(mensaje)),
+        SnackBar(
+          backgroundColor: !_aceptaTerminos
+              ? TemaPsicobloom.colorAdvertencia
+              : TemaPsicobloom.colorPrincipalOscuro,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          content: Text(
+            mensaje,
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+          ),
+          duration: const Duration(seconds: 6),
+        ),
       );
       return;
     }
@@ -243,15 +246,19 @@ class _PantallaRegistroPasoDosState extends State<PantallaRegistroPasoDos> {
                                   : 'Mostrar contraseña',
                             ),
                           ),
-                          validator: (valor) {
-                            if (valor == null || valor.isEmpty) {
-                              return 'Por favor ingresa tu contraseña';
-                            }
-                            if (valor.length < 11) {
-                              return 'La contraseña debe contener al menos 11 caracteres';
-                            }
-                            return null;
-                          },
+                          validator:
+                              TraductorErroresSupabase.validarClaveRegistro,
+                        ),
+                        const SizedBox(height: 4),
+                        const Padding(
+                          padding: EdgeInsets.only(left: 4.0),
+                          child: Text(
+                            'Mínimo 11 caracteres: mayúscula, minúscula, número y símbolo',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: TemaPsicobloom.colorTextoSecundario,
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 18),
 
@@ -289,15 +296,11 @@ class _PantallaRegistroPasoDosState extends State<PantallaRegistroPasoDos> {
                                   : 'Mostrar contraseña',
                             ),
                           ),
-                          validator: (valor) {
-                            if (valor == null || valor.isEmpty) {
-                              return 'Por favor confirma tu contraseña';
-                            }
-                            if (valor != _controladorClave.text) {
-                              return 'Las contraseñas no coinciden';
-                            }
-                            return null;
-                          },
+                          validator: (valor) =>
+                              TraductorErroresSupabase.validarConfirmacionClave(
+                                valor,
+                                _controladorClave.text,
+                              ),
                         ),
                         const SizedBox(height: 24),
 
