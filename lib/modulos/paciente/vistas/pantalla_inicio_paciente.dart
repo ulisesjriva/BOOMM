@@ -22,7 +22,7 @@ import 'pantalla_mapa_profesionales.dart';
 import 'pantalla_mis_citas_paciente.dart';
 import 'pantalla_perfil_paciente.dart';
 import 'pantalla_perfil_publico_profesional.dart';
-import 'pantalla_aviso_orientacion.dart';
+
 
 /// Pantalla 5: Inicio del paciente.
 /// Representa la interfaz principal a la que accede el paciente tras autenticarse.
@@ -456,7 +456,7 @@ class _PantallaInicioPacienteState extends State<PantallaInicioPaciente> {
                     context,
                     MaterialPageRoute<void>(
                       builder: (context) =>
-                          const PantallaAvisoOrientacion(),
+                          const PantallaCuestionarioOrientacion(),
                     ),
                   );
                 }
