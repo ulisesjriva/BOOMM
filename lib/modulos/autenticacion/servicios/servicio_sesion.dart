@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:boom/configuracion/configuracion_supabase.dart';
 import 'package:boom/modelos/perfil_usuario.dart';
 import 'package:boom/modulos/paciente/controladores/gestor_favoritos.dart';
+import 'package:boom/modulos/paciente/controladores/gestor_resultado_orientacion.dart';
 
 /// Estados posibles al resolver la sesion inicial o activa del usuario.
 enum EstadoResolucionSesion {
@@ -116,6 +117,7 @@ class ServicioSesion {
   /// Cierra la sesion del usuario y limpia el estado privado en memoria.
   Future<void> cerrarSesion() async {
     GestorFavoritos.instancia.limpiar();
+    GestorResultadoOrientacion.instancia.limpiar();
     if (!ConfiguracionSupabase.estaConfigurado) {
       return;
     }
@@ -131,6 +133,7 @@ class ServicioSesion {
     SupabaseClient cliente,
   ) async {
     GestorFavoritos.instancia.limpiar();
+    GestorResultadoOrientacion.instancia.limpiar();
     try {
       await cliente.auth.signOut(scope: SignOutScope.local);
     } catch (_) {}

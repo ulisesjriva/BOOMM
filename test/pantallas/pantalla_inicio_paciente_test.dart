@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:boom/modulos/paciente/controladores/gestor_resultado_orientacion.dart';
+import 'package:boom/modulos/paciente/modelos/cuestionario_orientacion.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/modulos/paciente/vistas/pantalla_inicio_paciente.dart';
 
 void main() {
+  setUp(() {
+    GestorResultadoOrientacion.instancia.limpiar();
+  });
+
+  tearDown(() {
+    GestorResultadoOrientacion.instancia.limpiar();
+  });
+
   Widget crearPantallaDePrueba({String nombrePaciente = 'María'}) {
     return MaterialApp(
       theme: TemaPsicobloom.obtenerTema(),
@@ -57,16 +67,16 @@ void main() {
       await probador.pumpWidget(crearPantallaDePrueba());
       await probador.pump();
 
-      // Pulsa en Orientarme
+      // Pulsa en Orientarme y navega al cuestionario de orientacion
       await probador.tap(find.text('Orientarme'));
-      await probador.pump();
+      await probador.pumpAndSettle();
 
-      expect(
-        find.text(
-          'El cuestionario de orientación psicológica estará disponible en próximas etapas.',
-        ),
-        findsOneWidget,
-      );
+      expect(find.text('Cuestionario de Orientación'), findsOneWidget);
+      expect(find.text('Descargo de responsabilidad médica'), findsOneWidget);
+
+      // Regresa a la pantalla de inicio
+      await probador.tap(find.byTooltip('Atrás'));
+      await probador.pumpAndSettle();
 
       // Pulsa en Buscar profesional y navega a la pantalla 6
       await probador.tap(find.text('Buscar profesional'));
@@ -74,6 +84,35 @@ void main() {
 
       expect(find.text('Encuentra el apoyo que necesitas'), findsOneWidget);
       expect(find.text('Nombre, especialidad o palabra clave'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Al pulsar Orientarme con resultado previo navega a PantallaCuestionarioCompletado',
+    (WidgetTester probador) async {
+      // Guardar un resultado previo en memoria de sesion
+      GestorResultadoOrientacion.instancia.guardarResultado(
+        const ResultadoOrientacion(
+          especialidadRecomendada: 'Psicología Clínica',
+          descripcion: 'Orientación para manejo del ánimo y ansiedad.',
+          categoriasDetectadas: ['Estado de Ánimo y Afectividad'],
+          centrosRecomendados: ['Hospital General Docente de Riobamba'],
+          requiereAtencionPrioritaria: false,
+          esSimulado: true,
+        ),
+      );
+
+      await probador.pumpWidget(crearPantallaDePrueba());
+      await probador.pump();
+
+      // Pulsa en Orientarme
+      await probador.tap(find.text('Orientarme'));
+      await probador.pumpAndSettle();
+
+      // Debe abrir la pantalla de cuestionario completado
+      expect(find.text('Cuestionario completado'), findsOneWidget);
+      expect(find.text('Ver recomendaciones detalladas'), findsOneWidget);
+      expect(find.text('Volver a realizar el cuestionario'), findsOneWidget);
     },
   );
 

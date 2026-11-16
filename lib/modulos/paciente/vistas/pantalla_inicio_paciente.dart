@@ -10,15 +10,19 @@ import 'package:boom/modelos/profesional.dart';
 import 'package:boom/datos/profesionales_simulados.dart';
 import 'package:boom/modulos/autenticacion/servicios/servicio_sesion.dart';
 import 'package:boom/modulos/paciente/controladores/gestor_favoritos.dart';
+import 'package:boom/modulos/paciente/controladores/gestor_resultado_orientacion.dart';
 import 'package:boom/modulos/paciente/servicios/servicio_citas_paciente.dart';
 import 'package:boom/repositorios/repositorio_profesionales.dart';
 import 'package:boom/repositorios/repositorio_profesionales_supabase.dart';
 
 import 'pantalla_buscar_profesionales.dart';
+import 'pantalla_cuestionario_completado.dart';
+import 'pantalla_cuestionario_orientacion.dart';
 import 'pantalla_mapa_profesionales.dart';
 import 'pantalla_mis_citas_paciente.dart';
 import 'pantalla_perfil_paciente.dart';
 import 'pantalla_perfil_publico_profesional.dart';
+import 'pantalla_aviso_orientacion.dart';
 
 /// Pantalla 5: Inicio del paciente.
 /// Representa la interfaz principal a la que accede el paciente tras autenticarse.
@@ -439,9 +443,23 @@ class _PantallaInicioPacienteState extends State<PantallaInicioPaciente> {
               colorFondoIcono: TemaPsicobloom.colorMenta,
               colorIcono: TemaPsicobloom.colorSecundario,
               alPresionar: () {
-                _mostrarMensajeInformativo(
-                  'El cuestionario de orientación psicológica estará disponible en próximas etapas.',
-                );
+                if (GestorResultadoOrientacion.instancia.tieneResultado) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (context) =>
+                          const PantallaCuestionarioCompletado(),
+                    ),
+                  );
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (context) =>
+                          const PantallaAvisoOrientacion(),
+                    ),
+                  );
+                }
               },
             ),
           ),
