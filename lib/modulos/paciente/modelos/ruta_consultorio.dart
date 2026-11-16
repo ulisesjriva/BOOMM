@@ -1,3 +1,12 @@
+/// Medio usado para solicitar una ruta real al proveedor.
+enum MedioTransporte {
+  auto,
+  caminando;
+
+  String get valorApi => name;
+  String get etiqueta => this == auto ? 'En auto' : 'Caminando';
+}
+
 /// Representa un punto geografico validado para el mapa y el trazado de rutas.
 class CoordenadaMapa {
   final double latitud;
@@ -39,6 +48,7 @@ class RutaConsultorio {
   final int duracionEstimadaSegundos;
   final bool incluyeTraficoTiempoReal;
   final String proveedor;
+  final MedioTransporte medioTransporte;
 
   const RutaConsultorio({
     required this.origen,
@@ -48,6 +58,7 @@ class RutaConsultorio {
     required this.duracionEstimadaSegundos,
     this.incluyeTraficoTiempoReal = false,
     this.proveedor = 'openrouteservice',
+    this.medioTransporte = MedioTransporte.auto,
   });
 
   /// Verifica que la ruta contenga geometria vial valida y metricas reales.
@@ -84,9 +95,18 @@ class RutaConsultorio {
   }
 
   /// Aviso explicito para distinguir tiempo estimado vs trafico en tiempo real.
-  String get avisoNaturalezaTiempo => incluyeTraficoTiempoReal
-      ? 'Tiempo calculado con condiciones de tráfico en tiempo real.'
-      : 'Tiempo estimado según la vía (no incluye tráfico en tiempo real).';
+  String get avisoNaturalezaTiempo {
+    if (medioTransporte == MedioTransporte.caminando) {
+      const aviso =
+          'Tiempo estimado caminando. Puede variar según tu ritmo y las condiciones del trayecto.';
+      return proveedor == 'google_routes'
+          ? '$aviso La ruta puede no incluir todas las aceras o sendas peatonales.'
+          : aviso;
+    }
+    return incluyeTraficoTiempoReal
+        ? 'Tiempo calculado con condiciones de tráfico en tiempo real.'
+        : 'Tiempo estimado según la vía (no incluye tráfico en tiempo real).';
+  }
 
   /// Decodifica una polilinea en formato estandar Google / OpenRouteService (precision 1e-5).
   static List<CoordenadaMapa> decodificarPolilinea(String cadenaCodificada) {

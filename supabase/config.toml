@@ -6,3 +6,7 @@
 
 [functions.telegram-webhook]
 verify_jwt = false
+
+
+[functions.geoapify]
+verify_jwt = true

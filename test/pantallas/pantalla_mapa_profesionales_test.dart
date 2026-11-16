@@ -107,29 +107,36 @@ void main() {
         findsOneWidget,
       );
 
-      // B. Area del mapa con marcadores de consultorios y calculo de ruta
+      // B. Area del mapa con marcadores con foto/iniciales, tarjetas compactas y ampliacion
       expect(find.byKey(const Key('areaPreliminarMapa')), findsOneWidget);
       expect(find.text('2 consultorios en el mapa'), findsOneWidget);
+      expect(find.byKey(const Key('botonAmpliarMapa')), findsOneWidget);
       expect(
-        find.text('Consultorio seleccionado: Dra. Valeria Andrade'),
+        find.byKey(const Key('tarjetaSelectorMapa_prof-1')),
         findsOneWidget,
       );
+      expect(
+        find.byKey(const Key('tarjetaSelectorMapa_prof-2')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('tarjetaProfesionalSeleccionadoMapa')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('botonVerPerfilMapa')), findsOneWidget);
       expect(find.byKey(const Key('botonCalcularRutaMapa')), findsOneWidget);
 
       // C. Seccion Profesionales disponibles con datos de la consulta
       expect(find.text('Profesionales disponibles'), findsOneWidget);
-      expect(find.text('Dra. Valeria Andrade'), findsOneWidget);
-      expect(
-        find.text('Psicología Clínica, Terapia Cognitiva'),
-        findsOneWidget,
-      );
+      expect(find.text('Dra. Valeria Andrade'), findsWidgets);
+      expect(find.text('Psicología Clínica, Terapia Cognitiva'), findsWidgets);
       expect(find.text('Presencial'), findsOneWidget);
       expect(
         find.text('Av. Daniel León Borja y Lavalle, Riobamba'),
-        findsOneWidget,
+        findsWidgets,
       );
 
-      expect(find.text('Dr. Mateo Salazar'), findsOneWidget);
+      expect(find.text('Dr. Mateo Salazar'), findsWidgets);
       expect(
         find.text('Calle Primera Constituyente, Riobamba'),
         findsOneWidget,
@@ -266,14 +273,129 @@ void main() {
         find.byKey(const Key('tarjetaResumenRutaConsultorio')),
         findsOneWidget,
       );
-      expect(find.text('Distancia vial: 1.5 km'), findsOneWidget);
-      expect(find.text('Tiempo: 6 min aprox.'), findsOneWidget);
+      expect(find.text('En auto · 6 min aprox.'), findsOneWidget);
+      expect(find.text('Recorrido: 1.5 km'), findsOneWidget);
       expect(
         find.text(
           'Tiempo estimado según la vía (no incluye tráfico en tiempo real).',
         ),
         findsOneWidget,
       );
+    },
+  );
+
+  testWidgets(
+    'PantallaMapaProfesionales sincroniza marcador y tarjeta, limpia ruta al cambiar, maneja foto ausente y abre mapa ampliado',
+    (WidgetTester probador) async {
+      probador.view.physicalSize = const Size(1080, 2400);
+      probador.view.devicePixelRatio = 2.0;
+      addTearDown(probador.view.resetPhysicalSize);
+      addTearDown(probador.view.resetDevicePixelRatio);
+
+      final repositorio = RepositorioProfesionalesSimulado(
+        fuenteDatos: profesionalesAprobadosPrueba,
+      );
+      final servicioUbicacion = _ServicioUbicacionPacientePrueba();
+      final servicioRutas = ServicioRutasConsultorio(
+        invocadorFuncionRuta:
+            ({
+              required origenLatitud,
+              required origenLongitud,
+              required destinoLatitud,
+              required destinoLongitud,
+              medioTransporte = 'auto',
+            }) async {
+              return <String, dynamic>{
+                'puntosRuta': <Map<String, double>>[
+                  {'latitud': origenLatitud, 'longitud': origenLongitud},
+                  {'latitud': -1.6698, 'longitud': -78.6495},
+                  {'latitud': destinoLatitud, 'longitud': destinoLongitud},
+                ],
+                'distanciaMetros': 1450.0,
+                'duracionEstimadaSegundos': 310,
+                'incluyeTraficoTiempoReal': false,
+                'proveedor': 'openrouteservice',
+                'medioTransporte': medioTransporte,
+              };
+            },
+      );
+
+      await probador.pumpWidget(
+        MaterialApp(
+          theme: TemaPsicobloom.obtenerTema(),
+          home: PantallaMapaProfesionales(
+            repositorio: repositorio,
+            servicioUbicacion: servicioUbicacion,
+            servicioRutas: servicioRutas,
+          ),
+        ),
+      );
+      await probador.pumpAndSettle();
+
+      // 1. Fotografia ausente: muestra iniciales sin errores
+      expect(find.text('DV'), findsWidgets);
+      expect(find.text('DM'), findsWidgets);
+
+      // 2. Calcular ruta para prof-1
+      final botonRuta = find.byKey(const Key('botonCalcularRutaMapa'));
+      await probador.ensureVisible(botonRuta);
+      await probador.pumpAndSettle();
+      await probador.tap(botonRuta.hitTestable());
+      await probador.pumpAndSettle();
+      expect(
+        find.byKey(const Key('tarjetaResumenRutaConsultorio')),
+        findsOneWidget,
+      );
+
+      // 3. Seleccionar prof-2 desde su tarjeta limpia la ruta anterior y actualiza la ficha
+      final tarjetaProf2 = find.byKey(const Key('tarjetaSelectorMapa_prof-2'));
+      await probador.ensureVisible(tarjetaProf2);
+      await probador.pumpAndSettle();
+      await probador.tap(tarjetaProf2);
+      await probador.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('tarjetaResumenRutaConsultorio')),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('tarjetaProfesionalSeleccionadoMapa')),
+          matching: find.text('Dr. Mateo Salazar'),
+        ),
+        findsOneWidget,
+      );
+
+      // 4. Seleccionar prof-1 desde el marcador en el mapa actualiza la tarjeta seleccionada
+      final marcadorProf1 = find.byKey(const Key('marcadorConsultorio_prof-1'));
+      await probador.ensureVisible(marcadorProf1);
+      await probador.pumpAndSettle();
+      await probador.tap(marcadorProf1);
+      await probador.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('tarjetaProfesionalSeleccionadoMapa')),
+          matching: find.text('Dra. Valeria Andrade'),
+        ),
+        findsOneWidget,
+      );
+
+      // 5. Abrir vista ampliada conservando seleccion y atribuciones, y cerrar limpiamente
+      final botonAmpliar = find.byKey(const Key('botonAmpliarMapa'));
+      await probador.ensureVisible(botonAmpliar);
+      await probador.pumpAndSettle();
+      await probador.tap(botonAmpliar);
+      await probador.pumpAndSettle();
+
+      expect(find.byKey(const Key('vistaMapaAmpliado')), findsOneWidget);
+      expect(find.text('Powered by Geoapify'), findsOneWidget);
+      expect(find.text('© OpenStreetMap contributors'), findsOneWidget);
+
+      await probador.tap(find.byKey(const Key('botonCerrarMapaAmpliado')));
+      await probador.pumpAndSettle();
+      expect(find.byKey(const Key('vistaMapaAmpliado')), findsNothing);
+      expect(find.byKey(const Key('areaPreliminarMapa')), findsOneWidget);
+      expect(probador.takeException(), isNull);
     },
   );
 }

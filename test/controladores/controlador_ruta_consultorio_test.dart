@@ -604,11 +604,17 @@ void main() {
         expect(botonRuta, findsOneWidget);
 
         await probador.ensureVisible(botonRuta);
-        await probador.tap(botonRuta);
+        await probador.pumpAndSettle();
+        await Scrollable.ensureVisible(
+          probador.element(botonRuta),
+          alignment: 0.5,
+        );
+        await probador.pumpAndSettle();
+        await probador.tap(botonRuta.hitTestable());
         await probador.pumpAndSettle();
 
-        expect(find.text('Distancia vial: 920 m'), findsOneWidget);
-        expect(find.text('Tiempo: 4 min aprox.'), findsOneWidget);
+        expect(find.text('En auto · 4 min aprox.'), findsOneWidget);
+        expect(find.text('Recorrido: 920 m'), findsOneWidget);
         expect(
           find.text(
             'Tiempo estimado según la vía (no incluye tráfico en tiempo real).',

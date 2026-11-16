@@ -45,16 +45,27 @@ typedef InvocadorFuncionRuta = Future<Map<String, dynamic>> Function({
   required double destinoLongitud,
 });
 
+/// Permite simular el contrato nuevo sin romper las pruebas anteriores de auto.
+typedef InvocadorRutaPorTransporte = Future<Map<String, dynamic>> Function({
+  required double origenLatitud,
+  required double origenLongitud,
+  required double destinoLatitud,
+  required double destinoLongitud,
+  required String medioTransporte,
+});
+
 /// Servicio encargado de consultar la ruta vial por calles, distancia y tiempo
 /// estimado mediante la Edge Function `calcular-ruta` de Supabase (acordada en E05).
 /// Nunca inventa distancias, tiempos ni presenta una linea recta como ruta por calles.
 class ServicioRutasConsultorio {
   final InvocadorFuncionRuta? invocadorFuncionRuta;
+  final InvocadorRutaPorTransporte? invocadorPorTransporte;
   final Duration tiempoLimiteSolicitud;
 
   const ServicioRutasConsultorio({
     this.invocadorFuncionRuta,
-    this.tiempoLimiteSolicitud = const Duration(seconds: 8),
+    this.invocadorPorTransporte,
+    this.tiempoLimiteSolicitud = const Duration(seconds: 20),
   });
 
   static const String nombreFuncionEdge = 'calcular-ruta';
@@ -64,6 +75,7 @@ class ServicioRutasConsultorio {
     required double? origenLongitud,
     required double? destinoLatitud,
     required double? destinoLongitud,
+    MedioTransporte medioTransporte = MedioTransporte.auto,
   }) async {
     if (destinoLatitud == null || destinoLongitud == null) {
       return const ResultadoCalculoRuta.fallo(
@@ -103,7 +115,21 @@ class ServicioRutasConsultorio {
 
     try {
       final Map<String, dynamic> datosRespuesta;
-      if (invocadorFuncionRuta != null) {
+      if (invocadorPorTransporte != null) {
+        datosRespuesta = await invocadorPorTransporte!(
+          origenLatitud: origen.latitud,
+          origenLongitud: origen.longitud,
+          destinoLatitud: destino.latitud,
+          destinoLongitud: destino.longitud,
+          medioTransporte: medioTransporte.valorApi,
+        ).timeout(tiempoLimiteSolicitud);
+      } else if (invocadorFuncionRuta != null) {
+        if (medioTransporte != MedioTransporte.auto) {
+          return const ResultadoCalculoRuta.fallo(
+            EstadoCalculoRuta.errorProveedor,
+            'Este servicio de rutas necesita actualizarse para calcular recorridos caminando.',
+          );
+        }
         datosRespuesta = await invocadorFuncionRuta!(
           origenLatitud: origen.latitud,
           origenLongitud: origen.longitud,
@@ -125,6 +151,7 @@ class ServicioRutasConsultorio {
                 'origenLongitud': origen.longitud,
                 'destinoLatitud': destino.latitud,
                 'destinoLongitud': destino.longitud,
+                'medioTransporte': medioTransporte.valorApi,
               },
             )
             .timeout(tiempoLimiteSolicitud);
@@ -141,6 +168,18 @@ class ServicioRutasConsultorio {
           !datosRespuesta.containsKey('puntosRuta') &&
           !datosRespuesta.containsKey('polilineaCodificada')) {
         return _mapearRespuestaError(422, datosRespuesta);
+      }
+
+      final transporteRecibido = datosRespuesta['medioTransporte'];
+      // Un servidor anterior devuelve solo auto. Nunca mostrarlo como caminata.
+      if ((transporteRecibido != null &&
+              transporteRecibido != medioTransporte.valorApi) ||
+          (medioTransporte == MedioTransporte.caminando &&
+              transporteRecibido != 'caminando')) {
+        return const ResultadoCalculoRuta.fallo(
+          EstadoCalculoRuta.errorProveedor,
+          'No se pudo confirmar el medio de transporte de la ruta. Actualiza el servicio de rutas.',
+        );
       }
 
       final puntosExtraidos = _extraerPuntosPolilineaValida(datosRespuesta);
@@ -171,6 +210,7 @@ class ServicioRutasConsultorio {
       final ruta = RutaConsultorio(
         origen: origen,
         destino: destino,
+        medioTransporte: medioTransporte,
         puntosPolilinea: List<CoordenadaMapa>.unmodifiable(puntosExtraidos),
         distanciaMetros: distanciaMetros,
         duracionEstimadaSegundos: duracionSegundos,

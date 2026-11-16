@@ -297,11 +297,33 @@ void main() {
         final botonCerrarSesionPerfil = find.byKey(
           const Key('botonCerrarSesionDesdePerfilProfesional'),
         );
-        await probador.scrollUntilVisible(
-          botonCerrarSesionPerfil,
-          300.0,
-          scrollable: find.byType(Scrollable).first,
-        );
+        // Esta prueba verifica el cierre de sesion, no el arrastre del mapa.
+        // Desplazar la lista por su posicion evita que el mapa capture el gesto.
+        final listaPerfil = find
+            .descendant(
+              of: find.byKey(const Key('listaPerfilProfesional')),
+              matching: find.byType(Scrollable),
+            )
+            .first;
+        final posicionLista = probador
+            .state<ScrollableState>(listaPerfil)
+            .position;
+        for (
+          var paso = 0;
+          paso < 30 && botonCerrarSesionPerfil.evaluate().isEmpty;
+          paso++
+        ) {
+          final destino = (posicionLista.pixels + 350)
+              .clamp(
+                posicionLista.minScrollExtent,
+                posicionLista.maxScrollExtent,
+              )
+              .toDouble();
+          posicionLista.jumpTo(destino);
+          await probador.pump();
+        }
+        expect(botonCerrarSesionPerfil, findsOneWidget);
+        await probador.ensureVisible(botonCerrarSesionPerfil);
         await probador.pumpAndSettle();
 
         await probador.tap(botonCerrarSesionPerfil);

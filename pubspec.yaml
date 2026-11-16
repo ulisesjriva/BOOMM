@@ -38,7 +38,9 @@ dependencies:
   app_links: 7.2.2
   image_picker: ^1.1.2
   geolocator: ^13.0.2
-  google_maps_flutter: ^2.10.0
+  flutter_map: 8.3.2
+  latlong2: 0.10.1
+  http: ^1.6.0
   url_launcher: ^6.3.3
 
 dev_dependencies:

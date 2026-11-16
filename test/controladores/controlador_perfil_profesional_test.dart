@@ -458,9 +458,7 @@ void main() {
           find.byKey(const Key('seccionPerfil_modalidadConsultorio')),
           findsOneWidget,
         );
-        final lienzoMapa = find.byKey(
-          const Key('lienzoMapaInteractivoRiobamba'),
-        );
+        final lienzoMapa = find.byKey(const Key('mapaGeoapify'));
         expect(lienzoMapa, findsOneWidget);
 
         await tester.tap(lienzoMapa);

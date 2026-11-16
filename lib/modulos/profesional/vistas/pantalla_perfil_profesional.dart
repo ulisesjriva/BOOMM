@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'package:boom/configuracion/configuracion_supabase.dart';
+import 'package:boom/nucleo/componentes/mapa_geoapify.dart';
+import 'package:boom/nucleo/servicios/servicio_geoapify.dart';
 import 'package:boom/modelos/especialidad.dart';
 import 'package:boom/modelos/profesional.dart';
 import 'package:boom/modulos/paciente/vistas/pantalla_perfil_publico_profesional.dart';
@@ -29,6 +31,7 @@ class PantallaPerfilProfesional extends StatefulWidget {
   final RepositorioEspecialidades repositorioEspecialidades;
   final ServicioUbicacionConsultorio servicioUbicacion;
   final ServicioAvisosTelegram servicioTelegram;
+  final ServicioGeoapify servicioGeoapify;
   final bool mostrarMapaInteractivo;
   final bool esVistaIntegrada;
   final ValueChanged<PerfilProfesional>? alActualizarPerfil;
@@ -43,6 +46,7 @@ class PantallaPerfilProfesional extends StatefulWidget {
     this.repositorioEspecialidades = const RepositorioEspecialidadesSupabase(),
     this.servicioUbicacion = const ServicioUbicacionConsultorio(),
     this.servicioTelegram = const ServicioAvisosTelegram(),
+    this.servicioGeoapify = const ServicioGeoapify(),
     this.mostrarMapaInteractivo = true,
     this.esVistaIntegrada = false,
     this.alActualizarPerfil,
@@ -69,7 +73,9 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
   late final TextEditingController _controladorLongitud;
 
   late final ControladorPerfilProfesional _controlador;
-  GoogleMapController? _controladorMapa;
+  bool _buscandoDireccion = false;
+  List<DireccionGeoapify> _direccionesEncontradas = const [];
+  String? _avisoDireccion;
   double? _ultimaLatitudSincronizada;
   double? _ultimaLongitudSincronizada;
 
@@ -119,7 +125,9 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
 
   Future<void> _inicializarDatos() async {
     await _controlador.inicializar();
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     final p = _controlador.perfil;
     if (p != null) {
       _ultimaLatitudSincronizada = p.latitud;
@@ -139,7 +147,9 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
   }
 
   void _sincronizarVista() {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     final lat = _controlador.latitudSeleccionada;
     final lng = _controlador.longitudSeleccionada;
     final cambiaronCoordenadas =
@@ -184,7 +194,6 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
   void dispose() {
     _controlador.removeListener(_sincronizarVista);
     _controlador.dispose();
-    _controladorMapa?.dispose();
     _controladorNombre.dispose();
     _controladorApellido.dispose();
     _controladorRegistro.dispose();
@@ -202,7 +211,9 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
     final subida = await _controlador.seleccionarYSubirFotografia(
       origen: origen,
     );
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     if (subida && _controlador.perfil != null) {
       widget.alActualizarPerfil?.call(_controlador.perfil!);
     }
@@ -215,21 +226,50 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
 
   Future<void> _obtenerUbicacionDispositivo() async {
     final obtenida = await _controlador.usarUbicacionActualDispositivo();
-    if (!mounted) return;
-    final lat = _controlador.latitudSeleccionada;
-    final lng = _controlador.longitudSeleccionada;
-    if (obtenida && lat != null && lng != null) {
-      await _controladorMapa?.animateCamera(
-        CameraUpdate.newLatLngZoom(LatLng(lat, lng), 16),
-      );
+    if (!mounted) {
+      return;
     }
     if (_controlador.avisoUbicacion != null) {
       _mostrarSnackBar(_controlador.avisoUbicacion!, esError: !obtenida);
     }
   }
 
+  Future<void> _buscarDireccion() async {
+    final texto = _controladorDireccion.text.trim();
+    setState(() {
+      _buscandoDireccion = true;
+      _avisoDireccion = null;
+      _direccionesEncontradas = const [];
+    });
+    try {
+      final resultados = await widget.servicioGeoapify.buscarDireccion(texto);
+      if (!mounted || _controladorDireccion.text.trim() != texto) {
+        return;
+      }
+      setState(() {
+        _direccionesEncontradas = resultados;
+        _avisoDireccion = resultados.isEmpty
+            ? 'No encontramos esa dirección. Prueba con una calle o selecciona el punto en el mapa.'
+            : 'Selecciona un resultado y comprueba la ubicación del consultorio.';
+      });
+    } catch (error) {
+      if (mounted && _controladorDireccion.text.trim() == texto) {
+        setState(() {
+          _avisoDireccion = error is ErrorGeoapify
+              ? error.mensaje
+              : 'No se pudo buscar la dirección.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _buscandoDireccion = false);
+      }
+    }
+  }
+
   Future<void> _guardarFormulario() async {
-    if (_controlador.ocupado ||
+    if (_buscandoDireccion ||
+        _controlador.ocupado ||
         !(_claveFormulario.currentState?.validate() ?? false)) {
       return;
     }
@@ -247,7 +287,9 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
       textoLatitud: _controladorLatitud.text,
       textoLongitud: _controladorLongitud.text,
     );
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     if (guardado && _controlador.perfil != null) {
       widget.alActualizarPerfil?.call(_controlador.perfil!);
     }
@@ -336,6 +378,7 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
         : Form(
             key: _claveFormulario,
             child: ListView(
+              key: const Key('listaPerfilProfesional'),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               children: [
                 if (widget.esVistaIntegrada) ...[
@@ -693,7 +736,9 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
 
   Future<void> _conectarTelegram() async {
     final iniciado = await _controlador.conectarTelegram();
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     if (iniciado && _controlador.mensajeExito != null) {
       _mostrarSnackBar(_controlador.mensajeExito!, esError: false);
     } else if (_controlador.mensajeError != null) {
@@ -703,7 +748,9 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
 
   Future<void> _comprobarConexionTelegram() async {
     final conectado = await _controlador.comprobarConexionTelegram();
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     if (_controlador.mensajeError != null) {
       _mostrarSnackBar(_controlador.mensajeError!, esError: true);
     } else if (_controlador.mensajeExito != null) {
@@ -713,7 +760,9 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
 
   Future<void> _desconectarTelegram() async {
     final desconectado = await _controlador.desconectarTelegram();
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     if (desconectado && _controlador.mensajeExito != null) {
       _mostrarSnackBar(_controlador.mensajeExito!, esError: false);
     } else if (_controlador.mensajeError != null) {
@@ -1100,12 +1149,6 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
     final lat = _controlador.latitudSeleccionada;
     final lng = _controlador.longitudSeleccionada;
     final tienePunto = lat != null && lng != null;
-    final puntoCamara = tienePunto
-        ? LatLng(lat, lng)
-        : const LatLng(
-            ServicioUbicacionConsultorio.latitudReferenciaRiobamba,
-            ServicioUbicacionConsultorio.longitudReferenciaRiobamba,
-          );
 
     return Container(
       key: const Key('seccionPerfil_modalidadConsultorio'),
@@ -1156,11 +1199,66 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
           TextFormField(
             key: const Key('campoDireccionConsultorio'),
             controller: _controladorDireccion,
+            onChanged: (_) => setState(() {
+              _direccionesEncontradas = const [];
+              _avisoDireccion = null;
+            }),
             decoration: const InputDecoration(
               hintText: 'Ej. Av. Daniel León Borja y Lavalle, Riobamba',
               prefixIcon: Icon(Icons.location_city_outlined),
             ),
           ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            key: const Key('botonBuscarDireccionGeoapify'),
+            onPressed: _buscandoDireccion || _controlador.ocupado
+                ? null
+                : _buscarDireccion,
+            icon: _buscandoDireccion
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.search),
+            label: Text(
+              _buscandoDireccion
+                  ? 'Buscando dirección...'
+                  : 'Buscar dirección en Riobamba',
+            ),
+          ),
+          if (_avisoDireccion != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Text(
+                _avisoDireccion!,
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+          for (final direccion in _direccionesEncontradas)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.place_outlined),
+              title: Text(
+                direccion.direccion,
+                style: const TextStyle(fontSize: 13),
+              ),
+              subtitle: const Text(
+                'Toca para seleccionar; comprueba el punto en el mapa.',
+              ),
+              onTap: () {
+                _controladorDireccion.text = direccion.direccion;
+                _controlador.seleccionarCoordenadasManuales(
+                  direccion.latitud,
+                  direccion.longitud,
+                );
+                setState(() {
+                  _direccionesEncontradas = const [];
+                  _avisoDireccion =
+                      'Revisa la ubicación y pulsa Guardar para conservarla.';
+                });
+              },
+            ),
           const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1235,50 +1333,33 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
           ],
           if (widget.mostrarMapaInteractivo) ...[
             const SizedBox(height: 14),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: SizedBox(
-                height: 220,
-                child: ConfiguracionSupabase.tieneClaveGoogleMaps
-                    ? GoogleMap(
-                        initialCameraPosition: CameraPosition(
-                          target: puntoCamara,
-                          zoom: 14.5,
-                        ),
-                        markers: tienePunto
-                            ? {
-                                Marker(
-                                  markerId: const MarkerId(
-                                    'marcador_consultorio',
-                                  ),
-                                  position: LatLng(lat, lng),
-                                  infoWindow: const InfoWindow(
-                                    title: 'Ubicación seleccionada',
-                                  ),
-                                ),
-                              }
-                            : const {},
-                        myLocationButtonEnabled: false,
-                        onMapCreated: (controlador) {
-                          _controladorMapa = controlador;
-                        },
-                        onTap: (coordenada) {
-                          _controlador.seleccionarCoordenadasManuales(
-                            coordenada.latitude,
-                            coordenada.longitude,
-                          );
-                        },
-                      )
-                    : _LienzoMapaInteractivoRiobamba(
-                        latitud: lat,
-                        longitud: lng,
-                        alSeleccionarCoordenadas: (nuevaLat, nuevaLng) {
-                          _controlador.seleccionarCoordenadasManuales(
-                            nuevaLat,
-                            nuevaLng,
-                          );
-                        },
+            MapaGeoapify(
+              centro: tienePunto
+                  ? LatLng(lat, lng)
+                  : const LatLng(
+                      ServicioUbicacionConsultorio.latitudReferenciaRiobamba,
+                      ServicioUbicacionConsultorio.longitudReferenciaRiobamba,
+                    ),
+              marcadores: [
+                if (tienePunto)
+                  Marker(
+                    point: LatLng(lat, lng),
+                    width: 42,
+                    height: 42,
+                    alignment: Alignment.topCenter,
+                    child: const Tooltip(
+                      message: 'Ubicación seleccionada',
+                      child: Icon(
+                        Icons.location_on,
+                        size: 40,
+                        color: TemaPsicobloom.colorPrincipal,
                       ),
+                    ),
+                  ),
+              ],
+              alTocar: (punto) => _controlador.seleccionarCoordenadasManuales(
+                punto.latitude,
+                punto.longitude,
               ),
             ),
           ],
@@ -1328,209 +1409,4 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
       ),
     );
   }
-}
-
-/// Selector interactivo de coordenadas para Riobamba basado en Flutter puro.
-/// Se utiliza cuando no se ha inyectado una clave nativa de Google Maps SDK
-/// en Android, evitando el cierre inesperado (IllegalStateException: API key not found).
-class _LienzoMapaInteractivoRiobamba extends StatelessWidget {
-  final double? latitud;
-  final double? longitud;
-  final void Function(double latitud, double longitud) alSeleccionarCoordenadas;
-
-  static const double _latCentro =
-      ServicioUbicacionConsultorio.latitudReferenciaRiobamba;
-  static const double _lngCentro =
-      ServicioUbicacionConsultorio.longitudReferenciaRiobamba;
-  static const double _rangoGrados = 0.030;
-
-  const _LienzoMapaInteractivoRiobamba({
-    required this.latitud,
-    required this.longitud,
-    required this.alSeleccionarCoordenadas,
-  });
-
-  void _manejarToque(TapUpDetails detalles, Size tamano) {
-    if (tamano.width <= 0 || tamano.height <= 0) return;
-    final proporcionX = (detalles.localPosition.dx / tamano.width).clamp(
-      0.0,
-      1.0,
-    );
-    final proporcionY = (detalles.localPosition.dy / tamano.height).clamp(
-      0.0,
-      1.0,
-    );
-    final nuevaLng = _lngCentro + (proporcionX - 0.5) * 2 * _rangoGrados;
-    final nuevaLat = _latCentro - (proporcionY - 0.5) * 2 * _rangoGrados;
-    alSeleccionarCoordenadas(nuevaLat, nuevaLng);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final tienePunto = latitud != null && longitud != null;
-
-    return LayoutBuilder(
-      builder: (context, restricciones) {
-        final ancho = restricciones.maxWidth;
-        final alto = restricciones.maxHeight;
-        final tamano = Size(ancho, alto);
-
-        double? posX;
-        double? posY;
-        if (tienePunto && ancho > 0 && alto > 0) {
-          final normX = ((longitud! - _lngCentro) / (2 * _rangoGrados) + 0.5)
-              .clamp(0.08, 0.92);
-          final normY = ((_latCentro - latitud!) / (2 * _rangoGrados) + 0.5)
-              .clamp(0.12, 0.88);
-          posX = normX * ancho;
-          posY = normY * alto;
-        }
-
-        return GestureDetector(
-          key: const Key('lienzoMapaInteractivoRiobamba'),
-          behavior: HitTestBehavior.opaque,
-          onTapUp: (detalles) => _manejarToque(detalles, tamano),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              CustomPaint(painter: _PintorCuadriculaMapaRiobamba()),
-              Positioned(
-                top: 10,
-                left: 10,
-                right: 10,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.92),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: TemaPsicobloom.colorBorde),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.touch_app_outlined,
-                        size: 16,
-                        color: TemaPsicobloom.colorPrincipal,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          tienePunto
-                              ? 'Marcador: ${latitud!.toStringAsFixed(5)}, ${longitud!.toStringAsFixed(5)}'
-                              : 'Toca el mapa de Riobamba para situar el consultorio',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: TemaPsicobloom.colorTexto,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              if (posX != null && posY != null)
-                Positioned(
-                  left: posX - 18,
-                  top: posY - 34,
-                  child: const Icon(
-                    Icons.location_on_rounded,
-                    size: 36,
-                    color: TemaPsicobloom.colorPrincipal,
-                  ),
-                ),
-              Positioned(
-                bottom: 8,
-                right: 10,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.88),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'Riobamba, Ecuador',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: TemaPsicobloom.colorTextoSecundario,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _PintorCuadriculaMapaRiobamba extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final fondo = Paint()..color = const Color(0xFFEEF3F1);
-    canvas.drawRect(Offset.zero & size, fondo);
-
-    final areaVerde = Paint()..color = const Color(0xFFDCEBE2);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(
-          size.width * 0.12,
-          size.height * 0.22,
-          size.width * 0.22,
-          size.height * 0.25,
-        ),
-        const Radius.circular(10),
-      ),
-      areaVerde,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(
-          size.width * 0.64,
-          size.height * 0.55,
-          size.width * 0.24,
-          size.height * 0.26,
-        ),
-        const Radius.circular(10),
-      ),
-      areaVerde,
-    );
-
-    final calleSecundaria = Paint()
-      ..color = const Color(0xFFD5DFDC)
-      ..strokeWidth = 1.4;
-    for (var i = 1; i <= 5; i++) {
-      final x = size.width * (i / 6);
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), calleSecundaria);
-    }
-    for (var j = 1; j <= 4; j++) {
-      final y = size.height * (j / 5);
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), calleSecundaria);
-    }
-
-    final avenidaPrincipal = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 4.5;
-    canvas.drawLine(
-      Offset(0, size.height * 0.48),
-      Offset(size.width, size.height * 0.48),
-      avenidaPrincipal,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.52, 0),
-      Offset(size.width * 0.52, size.height),
-      avenidaPrincipal,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

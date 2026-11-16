@@ -21,6 +21,17 @@ class ControladorRutaConsultorio extends ChangeNotifier {
   CoordenadaMapa? _ubicacionPaciente;
   String? _mensajeEstado;
   bool _cerrado = false;
+  MedioTransporte _medioTransporte = MedioTransporte.auto;
+  MedioTransporte get medioTransporte => _medioTransporte;
+
+  bool cambiarMedioTransporte(MedioTransporte nuevo) {
+    if (_cerrado || estaCalculando || nuevo == _medioTransporte) {
+      return false;
+    }
+    _medioTransporte = nuevo;
+    limpiarRuta();
+    return true;
+  }
 
   EstadoCalculoRuta get estado => _estado;
   bool get estaCalculando => _estado == EstadoCalculoRuta.calculando;
@@ -34,7 +45,9 @@ class ControladorRutaConsultorio extends ChangeNotifier {
     required double? destinoLatitud,
     required double? destinoLongitud,
   }) async {
-    if (_cerrado || estaCalculando) return false;
+    if (_cerrado || estaCalculando) {
+      return false;
+    }
 
     if (destinoLatitud == null ||
         destinoLongitud == null ||
@@ -50,6 +63,7 @@ class ControladorRutaConsultorio extends ChangeNotifier {
     }
 
     _estado = EstadoCalculoRuta.calculando;
+    _ruta = null;
     _mensajeEstado = null;
     _notificar();
 
@@ -57,7 +71,9 @@ class ControladorRutaConsultorio extends ChangeNotifier {
       // 1. Obtener ubicacion de origen con permiso del usuario
       final resultadoUbicacion = await servicioUbicacion
           .obtenerUbicacionActual();
-      if (_cerrado) return false;
+      if (_cerrado) {
+        return false;
+      }
 
       if (resultadoUbicacion.estado != EstadoUbicacionDispositivo.obtenida ||
           resultadoUbicacion.latitud == null ||
@@ -82,8 +98,11 @@ class ControladorRutaConsultorio extends ChangeNotifier {
         origenLongitud: _ubicacionPaciente!.longitud,
         destinoLatitud: destinoLatitud,
         destinoLongitud: destinoLongitud,
+        medioTransporte: _medioTransporte,
       );
-      if (_cerrado) return false;
+      if (_cerrado) {
+        return false;
+      }
 
       if (resultadoRuta.fueExitoso && resultadoRuta.ruta != null) {
         _estado = EstadoCalculoRuta.rutaObtenida;
@@ -101,7 +120,9 @@ class ControladorRutaConsultorio extends ChangeNotifier {
       _notificar();
       return false;
     } catch (_) {
-      if (_cerrado) return false;
+      if (_cerrado) {
+        return false;
+      }
       _estado = EstadoCalculoRuta.errorProveedor;
       _ruta = null;
       _mensajeEstado =
@@ -112,7 +133,9 @@ class ControladorRutaConsultorio extends ChangeNotifier {
   }
 
   void limpiarRuta() {
-    if (_cerrado) return;
+    if (_cerrado) {
+      return;
+    }
     _estado = EstadoCalculoRuta.inicial;
     _ruta = null;
     _mensajeEstado = null;

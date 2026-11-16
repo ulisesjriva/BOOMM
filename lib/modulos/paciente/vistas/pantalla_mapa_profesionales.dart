@@ -53,6 +53,7 @@ class _PantallaMapaProfesionalesState extends State<PantallaMapaProfesionales> {
   List<Profesional> _profesionales = const <Profesional>[];
   String? _idProfesionalSeleccionadoMapa;
   bool _estaCargando = true;
+  bool _mapaAmpliado = false;
   String? _mensajeError;
   late final ControladorRutaConsultorio _controladorRuta;
 
@@ -440,11 +441,22 @@ class _PantallaMapaProfesionalesState extends State<PantallaMapaProfesionales> {
     );
   }
 
-  /// B. Mapa de consultorios de profesionales en Riobamba con calculo de ruta vial.
-  Widget _construirAreaPreliminarMapa() {
-    final conUbicacion = _profesionalesConUbicacion;
+  void _abrirPerfilPublico(Profesional profesional) {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => PantallaPerfilPublicoProfesional(
+          profesional: profesional,
+          servicioUbicacion: widget.servicioUbicacion,
+          servicioRutas: widget.servicioRutas,
+        ),
+      ),
+    );
+  }
+
+  List<MarcadorConsultorioMapa> _construirMarcadoresMapa() {
     final seleccionado = _profesionalSeleccionadoEnMapa;
-    final marcadores = conUbicacion
+    return _profesionalesConUbicacion
         .map(
           (prof) => MarcadorConsultorioMapa(
             id: prof.id,
@@ -454,14 +466,138 @@ class _PantallaMapaProfesionalesState extends State<PantallaMapaProfesionales> {
                 : prof.especialidad,
             latitud: prof.latitud,
             longitud: prof.longitud,
+            fotoUrl: prof.fotoUrl,
             seleccionado: prof.id == seleccionado?.id,
           ),
         )
         .toList();
+  }
+
+  Future<void> _abrirMapaAmpliado() async {
+    if (_mapaAmpliado) return;
+    setState(() {
+      _mapaAmpliado = true;
+    });
+
+    try {
+      await showDialog<void>(
+        context: context,
+        useSafeArea: true,
+        barrierDismissible: true,
+        builder: (dialogContext) => Dialog.fullscreen(
+          key: const Key('vistaMapaAmpliado'),
+          child: StatefulBuilder(
+            builder: (context, setStateDialog) {
+              final seleccionado = _profesionalSeleccionadoEnMapa;
+              return Scaffold(
+                backgroundColor: TemaPsicobloom.colorFondo,
+                body: SafeArea(
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: const BoxDecoration(
+                          color: TemaPsicobloom.colorSuperficie,
+                          border: Border(
+                            bottom: BorderSide(
+                              color: TemaPsicobloom.colorBorde,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.map_outlined,
+                              color: TemaPsicobloom.colorPrincipal,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Mapa de consultorios',
+                                    style: TextStyle(
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: TemaPsicobloom.colorTexto,
+                                    ),
+                                  ),
+                                  if (seleccionado != null)
+                                    Text(
+                                      seleccionado.nombre,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        color:
+                                            TemaPsicobloom.colorTextoSecundario,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            TextButton.icon(
+                              key: const Key('botonCerrarMapaAmpliado'),
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(),
+                              icon: const Icon(Icons.close_rounded, size: 18),
+                              label: const Text('Cerrar'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: LayoutBuilder(
+                            builder: (_, restricciones) => MapaConsultorioRuta(
+                              altura: restricciones.maxHeight,
+                              marcadores: _construirMarcadoresMapa(),
+                              ubicacionPaciente:
+                                  _controladorRuta.ubicacionPaciente,
+                              rutaActiva: _controladorRuta.ruta,
+                              alSeleccionarMarcador: (id) {
+                                _seleccionarProfesionalEnMapa(id);
+                                setStateDialog(() {});
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _mapaAmpliado = false;
+        });
+      }
+    }
+  }
+
+  /// B. Mapa de consultorios de profesionales en Riobamba con calculo de ruta vial.
+  Widget _construirAreaPreliminarMapa() {
+    final conUbicacion = _profesionalesConUbicacion;
+    final seleccionado = _profesionalSeleccionadoEnMapa;
+    final marcadores = _construirMarcadoresMapa();
+    final alturaMapa = (MediaQuery.sizeOf(context).height * 0.36).clamp(
+      250.0,
+      360.0,
+    );
 
     return Container(
       key: const Key('areaPreliminarMapa'),
-      padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 18.0),
+      padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 14.0),
       decoration: BoxDecoration(
         color: TemaPsicobloom.colorSuperficie,
         borderRadius: BorderRadius.circular(20),
@@ -513,61 +649,190 @@ class _PantallaMapaProfesionalesState extends State<PantallaMapaProfesionales> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          MapaConsultorioRuta(
-            altura: 220,
-            marcadores: marcadores,
-            ubicacionPaciente: _controladorRuta.ubicacionPaciente,
-            rutaActiva: _controladorRuta.ruta,
-            alSeleccionarMarcador: _seleccionarProfesionalEnMapa,
-          ),
-          if (conUbicacion.length > 1) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: conUbicacion.map((prof) {
-                final activo = prof.id == seleccionado?.id;
-                return ChoiceChip(
-                  label: Text(
-                    'Ubicación: ${prof.nombre}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: activo ? FontWeight.bold : FontWeight.w500,
+          const SizedBox(height: 10),
+          if (_mapaAmpliado)
+            SizedBox(height: alturaMapa)
+          else
+            MapaConsultorioRuta(
+              altura: alturaMapa,
+              marcadores: marcadores,
+              ubicacionPaciente: _controladorRuta.ubicacionPaciente,
+              rutaActiva: _controladorRuta.ruta,
+              alSeleccionarMarcador: _seleccionarProfesionalEnMapa,
+              alAmpliar: () => unawaited(_abrirMapaAmpliado()),
+            ),
+          if (conUbicacion.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'Selecciona un profesional',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: TemaPsicobloom.colorTextoSecundario,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 64,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: conUbicacion.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
+                itemBuilder: (context, indice) {
+                  final prof = conUbicacion[indice];
+                  final activo = prof.id == seleccionado?.id;
+                  return InkWell(
+                    key: Key('tarjetaSelectorMapa_${prof.id}'),
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () => _seleccionarProfesionalEnMapa(prof.id),
+                    child: Container(
+                      constraints: const BoxConstraints(
+                        minWidth: 148,
+                        maxWidth: 196,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: activo
+                            ? TemaPsicobloom.colorLavanda.withValues(
+                                alpha: 0.55,
+                              )
+                            : TemaPsicobloom.colorFondo,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: activo
+                              ? TemaPsicobloom.colorPrincipal
+                              : TemaPsicobloom.colorBorde,
+                          width: activo ? 1.8 : 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          AvatarFotoProfesional(
+                            nombre: prof.nombre,
+                            fotoUrl: prof.fotoUrl,
+                            diametro: 38,
+                            colorBorde: activo
+                                ? TemaPsicobloom.colorPrincipal
+                                : TemaPsicobloom.colorBorde,
+                            anchoBorde: activo ? 2.0 : 1.2,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              prof.nombre,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: activo
+                                    ? FontWeight.bold
+                                    : FontWeight.w600,
+                                color: TemaPsicobloom.colorTexto,
+                                height: 1.2,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  selected: activo,
-                  selectedColor: TemaPsicobloom.colorLavanda,
-                  onSelected: (_) => _seleccionarProfesionalEnMapa(prof.id),
-                );
-              }).toList(),
+                  );
+                },
+              ),
             ),
           ],
           if (seleccionado != null) ...[
-            const SizedBox(height: 10),
-            Text(
-              'Consultorio seleccionado: ${seleccionado.nombre}',
-              style: const TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.bold,
-                color: TemaPsicobloom.colorTexto,
+            const SizedBox(height: 12),
+            Container(
+              key: const Key('tarjetaProfesionalSeleccionadoMapa'),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: TemaPsicobloom.colorFondo,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: TemaPsicobloom.colorBorde),
               ),
-            ),
-            if (seleccionado.direccionConsultorio.trim().isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text(
-                'Dirección: ${seleccionado.direccionConsultorio.trim()}',
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  color: TemaPsicobloom.colorTextoSecundario,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AvatarFotoProfesional(
+                        nombre: seleccionado.nombre,
+                        fotoUrl: seleccionado.fotoUrl,
+                        diametro: 52,
+                        colorBorde: TemaPsicobloom.colorPrincipal,
+                        anchoBorde: 2.0,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              seleccionado.nombre,
+                              style: const TextStyle(
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.bold,
+                                color: TemaPsicobloom.colorTexto,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              seleccionado.especialidades.isNotEmpty
+                                  ? seleccionado.especialidades.join(', ')
+                                  : seleccionado.especialidad,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: TemaPsicobloom.colorTextoSecundario,
+                              ),
+                            ),
+                            if (seleccionado.direccionConsultorio
+                                .trim()
+                                .isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 2),
+                                    child: Icon(
+                                      Icons.location_on_outlined,
+                                      size: 14,
+                                      color: TemaPsicobloom.colorPrincipal,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      seleccionado.direccionConsultorio.trim(),
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        color:
+                                            TemaPsicobloom.colorTextoSecundario,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  PanelResultadoRutaConsultorio(
+                    claveBotonCalcular: const Key('botonCalcularRutaMapa'),
+                    controlador: _controladorRuta,
+                    alSolicitarRuta: () =>
+                        unawaited(_calcularRutaSeleccionada()),
+                    alVerPerfil: () => _abrirPerfilPublico(seleccionado),
+                  ),
+                ],
               ),
-            ],
-            const SizedBox(height: 10),
-            PanelResultadoRutaConsultorio(
-              claveBotonCalcular: const Key('botonCalcularRutaMapa'),
-              controlador: _controladorRuta,
-              alSolicitarRuta: () => unawaited(_calcularRutaSeleccionada()),
             ),
           ] else ...[
             const SizedBox(height: 10),

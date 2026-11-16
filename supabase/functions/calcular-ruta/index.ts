@@ -324,6 +324,14 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Solo perfiles admitidos: no aceptar endpoints o valores arbitrarios.
+    const medioTransporte = cuerpo.medioTransporte === undefined ? 'auto' : cuerpo.medioTransporte;
+    if (medioTransporte !== 'auto' && medioTransporte !== 'caminando') {
+      return respuestaJson(400, { codigo: 'TRANSPORTE_INVALIDO',
+        mensaje: 'Selecciona En auto o Caminando para calcular la ruta.' });
+    }
+    const perfilOrs = medioTransporte === 'auto' ? 'driving-car' : 'foot-walking';
+
     // 5. Seleccion explicita del proveedor de rutas configurado en el servidor
     const proveedorSeleccionado = seleccionarProveedorConfigurado({
       proveedorExplicito: Deno.env.get('PROVEEDOR_RUTAS'),
@@ -344,7 +352,7 @@ Deno.serve(async (req: Request) => {
       let respuestaOrs: Response;
       try {
         respuestaOrs = await consultarConTiempoLimite(
-          'https://api.heigit.org/openrouteservice/v2/directions/driving-car/geojson',
+          `https://api.heigit.org/openrouteservice/v2/directions/${perfilOrs}/geojson`,
           {
             method: 'POST',
             headers: {
@@ -420,6 +428,7 @@ Deno.serve(async (req: Request) => {
         duracionEstimadaSegundos,
         incluyeTraficoTiempoReal: false,
         proveedor: 'openrouteservice',
+        medioTransporte,
       });
     }
 
@@ -450,8 +459,8 @@ Deno.serve(async (req: Request) => {
                 },
               },
             },
-            travelMode: 'DRIVE',
-            routingPreference: 'TRAFFIC_UNAWARE',
+            travelMode: medioTransporte === 'auto' ? 'DRIVE' : 'WALK',
+            ...(medioTransporte === 'auto' ? { routingPreference: 'TRAFFIC_UNAWARE' } : {}),
           }),
         },
       );
@@ -510,6 +519,7 @@ Deno.serve(async (req: Request) => {
       duracionEstimadaSegundos,
       incluyeTraficoTiempoReal: false,
       proveedor: 'google_routes',
+      medioTransporte,
     });
   } catch (_) {
     return respuestaJson(500, {
