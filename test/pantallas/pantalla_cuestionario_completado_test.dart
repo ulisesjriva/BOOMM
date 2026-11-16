@@ -13,9 +13,8 @@ void main() {
         especialidadRecomendada: 'Psicología Clínica',
         descripcion: 'Orientación para manejo del estado de ánimo.',
         categoriasDetectadas: ['Estado de Ánimo y Afectividad'],
-        centrosRecomendados: ['Hospital General Docente de Riobamba'],
+        centrosRecomendadosRiobamba: ['Hospital General Docente de Riobamba'],
         requiereAtencionPrioritaria: false,
-        esSimulado: true,
       ),
     );
   });
@@ -39,7 +38,9 @@ void main() {
 
       expect(find.text('Cuestionario completado'), findsOneWidget);
       expect(
-        find.textContaining('Ya has completado tu cuestionario de orientación psicológica'),
+        find.textContaining(
+          'Ya has completado tu cuestionario de orientación psicológica',
+        ),
         findsOneWidget,
       );
       expect(find.text('Psicología Clínica'), findsOneWidget);
@@ -69,7 +70,10 @@ void main() {
       await probador.pumpWidget(crearPantallaDePrueba());
       await probador.pumpAndSettle();
 
-      await probador.tap(find.text('Volver a realizar el cuestionario'));
+      final botonRepetir = find.text('Volver a realizar el cuestionario');
+      await probador.ensureVisible(botonRepetir);
+      await probador.pumpAndSettle();
+      await probador.tap(botonRepetir);
       await probador.pumpAndSettle();
 
       expect(find.text('¿Deseas repetir el cuestionario?'), findsOneWidget);
@@ -79,8 +83,8 @@ void main() {
       await probador.pumpAndSettle();
 
       // Debe abrir la pantalla del cuestionario desde el inicio
-      expect(find.text('Cuestionario de Orientación'), findsOneWidget);
-      expect(find.text('Comenzar cuestionario'), findsOneWidget);
+      expect(find.text('Introducción y Consentimiento'), findsOneWidget);
+      expect(find.text('Entendido y comenzar'), findsOneWidget);
       // El gestor en memoria debio quedar limpio
       expect(GestorResultadoOrientacion.instancia.tieneResultado, isFalse);
     },

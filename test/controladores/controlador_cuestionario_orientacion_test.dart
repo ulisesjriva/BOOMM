@@ -66,7 +66,10 @@ void main() {
         controlador.responderSiNo(p.id, 'No');
       }
       controlador.avanzar(); // experienciasTraumaticas
-      expect(controlador.etapaActual, EtapaCuestionario.experienciasTraumaticas);
+      expect(
+        controlador.etapaActual,
+        EtapaCuestionario.experienciasTraumaticas,
+      );
 
       // Si responde No a ET_01, solo esa es obligatoria
       controlador.responderSiNo('ET_01', 'No');
@@ -85,84 +88,102 @@ void main() {
       expect(controlador.puedeAvanzar(), isTrue);
     });
 
-    test('Logica condicional para alcohol (AS_01 en No omite AS_02 a AS_04)', () {
-      // Llevar el controlador hasta alcohol y otras sustancias (etapa 8)
-      while (controlador.etapaActual != EtapaCuestionario.alcoholSustancias) {
-        final preguntas = preguntasPorEtapa[controlador.etapaActual];
-        if (preguntas != null) {
-          for (final p in preguntas) {
-            if (p.tipo == TipoPreguntaOrientacion.seleccionMultiple) {
-              controlador.alternarOpcionMultiple(p.id, 'Ninguna de las anteriores');
-            } else {
-              controlador.responderSiNo(p.id, 'No');
+    test(
+      'Logica condicional para alcohol (AS_01 en No omite AS_02 a AS_04)',
+      () {
+        // Llevar el controlador hasta alcohol y otras sustancias (etapa 8)
+        while (controlador.etapaActual != EtapaCuestionario.alcoholSustancias) {
+          final preguntas = preguntasPorEtapa[controlador.etapaActual];
+          if (preguntas != null) {
+            for (final p in preguntas) {
+              if (p.tipo == TipoPreguntaOrientacion.seleccionMultiple) {
+                controlador.alternarOpcionMultiple(
+                  p.id,
+                  'Ninguna de las anteriores',
+                );
+              } else {
+                controlador.responderSiNo(p.id, 'No');
+              }
             }
           }
+          controlador.avanzar();
         }
-        controlador.avanzar();
-      }
-      expect(controlador.etapaActual, EtapaCuestionario.alcoholSustancias);
+        expect(controlador.etapaActual, EtapaCuestionario.alcoholSustancias);
 
-      // Responder AS_01 con No y AS_05 con No y AS_09 con Ninguna
-      controlador.responderSiNo('AS_01', 'No');
-      controlador.responderSiNo('AS_05', 'No');
-      controlador.alternarOpcionMultiple('AS_09', 'Ninguna de las anteriores');
+        // Responder AS_01 con No y AS_05 con No y AS_09 con Ninguna
+        controlador.responderSiNo('AS_01', 'No');
+        controlador.responderSiNo('AS_05', 'No');
+        controlador.alternarOpcionMultiple(
+          'AS_09',
+          'Ninguna de las anteriores',
+        );
 
-      // Puede avanzar porque las secundarias de alcohol y marihuana estan ocultas
-      expect(controlador.puedeAvanzar(), isTrue);
+        // Puede avanzar porque las secundarias de alcohol y marihuana estan ocultas
+        expect(controlador.puedeAvanzar(), isTrue);
 
-      // Si cambia AS_01 a Sí, debe responder AS_02, AS_03, AS_04
-      controlador.responderSiNo('AS_01', 'Sí');
-      expect(controlador.puedeAvanzar(), isFalse);
+        // Si cambia AS_01 a Sí, debe responder AS_02, AS_03, AS_04
+        controlador.responderSiNo('AS_01', 'Sí');
+        expect(controlador.puedeAvanzar(), isFalse);
 
-      controlador.responderSiNo('AS_02', 'Sí');
-      controlador.responderSiNo('AS_03', 'No');
-      controlador.responderSiNo('AS_04', 'No');
-      expect(controlador.puedeAvanzar(), isTrue);
+        controlador.responderSiNo('AS_02', 'Sí');
+        controlador.responderSiNo('AS_03', 'No');
+        controlador.responderSiNo('AS_04', 'No');
+        expect(controlador.puedeAvanzar(), isTrue);
 
-      // Si cambia de nuevo AS_01 a No, se limpian las secundarias
-      controlador.responderSiNo('AS_01', 'No');
-      expect(controlador.obtenerRespuesta('AS_02'), isNull);
-      expect(controlador.obtenerRespuesta('AS_03'), isNull);
-      expect(controlador.obtenerRespuesta('AS_04'), isNull);
-      expect(controlador.puedeAvanzar(), isTrue);
-    });
+        // Si cambia de nuevo AS_01 a No, se limpian las secundarias
+        controlador.responderSiNo('AS_01', 'No');
+        expect(controlador.obtenerRespuesta('AS_02'), isNull);
+        expect(controlador.obtenerRespuesta('AS_03'), isNull);
+        expect(controlador.obtenerRespuesta('AS_04'), isNull);
+        expect(controlador.puedeAvanzar(), isTrue);
+      },
+    );
 
-    test('Logica condicional para marihuana (AS_05 en No omite AS_06 a AS_08)', () {
-      while (controlador.etapaActual != EtapaCuestionario.alcoholSustancias) {
-        final preguntas = preguntasPorEtapa[controlador.etapaActual];
-        if (preguntas != null) {
-          for (final p in preguntas) {
-            if (p.tipo == TipoPreguntaOrientacion.seleccionMultiple) {
-              controlador.alternarOpcionMultiple(p.id, 'Ninguna de las anteriores');
-            } else {
-              controlador.responderSiNo(p.id, 'No');
+    test(
+      'Logica condicional para marihuana (AS_05 en No omite AS_06 a AS_08)',
+      () {
+        while (controlador.etapaActual != EtapaCuestionario.alcoholSustancias) {
+          final preguntas = preguntasPorEtapa[controlador.etapaActual];
+          if (preguntas != null) {
+            for (final p in preguntas) {
+              if (p.tipo == TipoPreguntaOrientacion.seleccionMultiple) {
+                controlador.alternarOpcionMultiple(
+                  p.id,
+                  'Ninguna de las anteriores',
+                );
+              } else {
+                controlador.responderSiNo(p.id, 'No');
+              }
             }
           }
+          controlador.avanzar();
         }
-        controlador.avanzar();
-      }
 
-      controlador.responderSiNo('AS_01', 'No');
-      controlador.responderSiNo('AS_05', 'No');
-      controlador.alternarOpcionMultiple('AS_09', 'Ninguna de las anteriores');
-      expect(controlador.puedeAvanzar(), isTrue);
+        controlador.responderSiNo('AS_01', 'No');
+        controlador.responderSiNo('AS_05', 'No');
+        controlador.alternarOpcionMultiple(
+          'AS_09',
+          'Ninguna de las anteriores',
+        );
+        expect(controlador.puedeAvanzar(), isTrue);
 
-      // Si responde Sí a marihuana (AS_05), se activan AS_06 a AS_08
-      controlador.responderSiNo('AS_05', 'Sí');
-      expect(controlador.puedeAvanzar(), isFalse);
+        // Si responde Sí a marihuana (AS_05), se activan AS_06 a AS_08
+        controlador.responderSiNo('AS_05', 'Sí');
+        expect(controlador.puedeAvanzar(), isFalse);
 
-      controlador.responderSiNo('AS_06', 'Sí');
-      controlador.responderSiNo('AS_07', 'No');
-      controlador.responderSiNo('AS_08', 'No');
-      expect(controlador.puedeAvanzar(), isTrue);
+        controlador.responderSiNo('AS_06', 'Sí');
+        controlador.responderSiNo('AS_07', 'No');
+        controlador.responderSiNo('AS_08', 'No');
+        expect(controlador.puedeAvanzar(), isTrue);
 
-      // Si cambia AS_05 a No, se limpian AS_06..AS_08
-      controlador.responderSiNo('AS_05', 'No');
-      expect(controlador.obtenerRespuesta('AS_06'), isNull);
-      expect(controlador.obtenerRespuesta('AS_07'), isNull);
-      expect(controlador.obtenerRespuesta('AS_08'), isNull);
-      expect(controlador.puedeAvanzar(), isTrue);
-    });
+        // Si cambia AS_05 a No, se limpian AS_06..AS_08
+        controlador.responderSiNo('AS_05', 'No');
+        expect(controlador.obtenerRespuesta('AS_06'), isNull);
+        expect(controlador.obtenerRespuesta('AS_07'), isNull);
+        expect(controlador.obtenerRespuesta('AS_08'), isNull);
+        expect(controlador.puedeAvanzar(), isTrue);
+      },
+    );
 
     test('Alternancia de opciones multiples y exclusividad con Ninguna de las anteriores', () {
       const idPregunta = 'AS_09';
@@ -208,52 +229,63 @@ void main() {
       expect(controlador.etapaActual, EtapaCuestionario.introduccion);
     });
 
-    test('Finalizar y analizar guarda el resultado en GestorResultadoOrientacion', () async {
-      // Simular respuestas de un caso con sintomas de animo y ansiedad
-      controlador.responderSiNo('EA_01', 'Sí');
-      controlador.responderSiNo('EA_02', 'Sí');
-      controlador.responderSiNo('EA_03', 'Sí');
-      controlador.responderSiNo('EA_05', 'Sí'); // Pregunta sensible de ideacion
-      controlador.responderSiNo('AN_01', 'Sí');
-      controlador.responderSiNo('AN_02', 'Sí');
+    test(
+      'Finalizar y analizar guarda el resultado en GestorResultadoOrientacion',
+      () async {
+        // Simular respuestas de un caso con sintomas de animo y ansiedad
+        controlador.responderSiNo('EA_01', 'Sí');
+        controlador.responderSiNo('EA_02', 'Sí');
+        controlador.responderSiNo('EA_03', 'Sí');
+        controlador.responderSiNo(
+          'EA_05',
+          'Sí',
+        ); // Pregunta sensible de ideacion
+        controlador.responderSiNo('AN_01', 'Sí');
+        controlador.responderSiNo('AN_02', 'Sí');
 
-      expect(GestorResultadoOrientacion.instancia.tieneResultado, isFalse);
+        expect(GestorResultadoOrientacion.instancia.tieneResultado, isFalse);
 
-      await controlador.finalizarYAnalizar();
+        await controlador.finalizarYAnalizar();
 
-      expect(controlador.etapaActual, EtapaCuestionario.resultado);
-      expect(controlador.resultado, isNotNull);
-      expect(controlador.resultado!.especialidadSugerida, isNotEmpty);
-      expect(controlador.resultado!.centrosRecomendados, isNotEmpty);
-      expect(controlador.resultado!.requiereAtencionPrioritaria, isTrue);
-      expect(controlador.resultado!.esSimulado, isTrue);
+        expect(controlador.etapaActual, EtapaCuestionario.resultado);
+        expect(controlador.resultado, isNotNull);
+        expect(controlador.resultado!.especialidadRecomendada, isNotEmpty);
+        expect(controlador.resultado!.centrosRecomendadosRiobamba, isNotEmpty);
+        expect(controlador.resultado!.requiereAtencionPrioritaria, isTrue);
 
-      // Verifica que el gestor de sesion haya almacenado el resultado
-      expect(GestorResultadoOrientacion.instancia.tieneResultado, isTrue);
-      expect(
-        GestorResultadoOrientacion.instancia.resultadoActual?.especialidadRecomendada,
-        controlador.resultado!.especialidadRecomendada,
-      );
+        // Verifica que el gestor de sesion haya almacenado el resultado
+        expect(GestorResultadoOrientacion.instancia.tieneResultado, isTrue);
+        expect(
+          GestorResultadoOrientacion
+              .instancia
+              .resultadoActual
+              ?.especialidadRecomendada,
+          controlador.resultado!.especialidadRecomendada,
+        );
 
-      // Al limpiar la sesion se destruye el resultado
-      GestorResultadoOrientacion.instancia.limpiar();
-      expect(GestorResultadoOrientacion.instancia.tieneResultado, isFalse);
-      expect(GestorResultadoOrientacion.instancia.resultadoActual, isNull);
-    });
+        // Al limpiar la sesion se destruye el resultado
+        GestorResultadoOrientacion.instancia.limpiar();
+        expect(GestorResultadoOrientacion.instancia.tieneResultado, isFalse);
+        expect(GestorResultadoOrientacion.instancia.resultadoActual, isNull);
+      },
+    );
 
-    test('Reiniciar limpia todas las respuestas y el resultado de la memoria', () async {
-      controlador.responderSiNo('EA_01', 'Sí');
-      await controlador.finalizarYAnalizar();
+    test(
+      'Reiniciar limpia todas las respuestas y el resultado de la memoria',
+      () async {
+        controlador.responderSiNo('EA_01', 'Sí');
+        await controlador.finalizarYAnalizar();
 
-      expect(controlador.respuestas, isNotEmpty);
-      expect(controlador.resultado, isNotNull);
+        expect(controlador.respuestas, isNotEmpty);
+        expect(controlador.resultado, isNotNull);
 
-      controlador.reiniciar();
+        controlador.reiniciar();
 
-      expect(controlador.etapaActual, EtapaCuestionario.introduccion);
-      expect(controlador.respuestas, isEmpty);
-      expect(controlador.resultado, isNull);
-      expect(controlador.estaProcesando, isFalse);
-    });
+        expect(controlador.etapaActual, EtapaCuestionario.introduccion);
+        expect(controlador.respuestas, isEmpty);
+        expect(controlador.resultado, isNull);
+        expect(controlador.estaProcesando, isFalse);
+      },
+    );
   });
 }

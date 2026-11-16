@@ -71,8 +71,8 @@ void main() {
       await probador.tap(find.text('Orientarme'));
       await probador.pumpAndSettle();
 
-      expect(find.text('Cuestionario de Orientación'), findsOneWidget);
-      expect(find.text('Descargo de responsabilidad médica'), findsOneWidget);
+      expect(find.text('Introducción y Consentimiento'), findsOneWidget);
+      expect(find.text('Aviso importante y descargo ético'), findsOneWidget);
 
       // Regresa a la pantalla de inicio
       await probador.tap(find.byTooltip('Atrás'));
@@ -96,9 +96,8 @@ void main() {
           especialidadRecomendada: 'Psicología Clínica',
           descripcion: 'Orientación para manejo del ánimo y ansiedad.',
           categoriasDetectadas: ['Estado de Ánimo y Afectividad'],
-          centrosRecomendados: ['Hospital General Docente de Riobamba'],
+          centrosRecomendadosRiobamba: ['Hospital General Docente de Riobamba'],
           requiereAtencionPrioritaria: false,
-          esSimulado: true,
         ),
       );
 

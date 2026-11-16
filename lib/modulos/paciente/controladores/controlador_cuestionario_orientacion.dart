@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+
 import '../datos/preguntas_cuestionario.dart';
 import '../modelos/cuestionario_orientacion.dart';
 import '../servicios/servicio_orientacion_ia.dart';
@@ -7,11 +8,11 @@ import 'gestor_resultado_orientacion.dart';
 /// Controlador que gestiona el estado volátil del cuestionario de orientación,
 /// la navegación entre etapas y la validación de respuestas en memoria.
 class ControladorCuestionarioOrientacion extends ChangeNotifier {
-  final ServicioOrientacionIa _servicio;
+  final ServicioOrientacionIa servicio;
 
   ControladorCuestionarioOrientacion({
-    ServicioOrientacionIa servicio = const ServicioOrientacionIa(),
-  }) : _servicio = servicio;
+    this.servicio = const ServicioOrientacionIa(),
+  });
 
   EtapaCuestionario _etapaActual = EtapaCuestionario.introduccion;
   final Map<String, dynamic> _respuestas = <String, dynamic>{};
@@ -144,7 +145,7 @@ class ControladorCuestionarioOrientacion extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _resultado = await _servicio.analizarRespuestas(_respuestas);
+      _resultado = await servicio.analizarRespuestas(_respuestas);
       _etapaActual = EtapaCuestionario.resultado;
       if (_resultado != null) {
         GestorResultadoOrientacion.instancia.guardarResultado(_resultado!);

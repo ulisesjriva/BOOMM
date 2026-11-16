@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../nucleo/tema/tema_psicobloom.dart';
 import '../controladores/controlador_cuestionario_orientacion.dart';
 import '../datos/preguntas_cuestionario.dart';
@@ -85,7 +86,10 @@ class _PantallaCuestionarioOrientacionState
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: const Row(
           children: [
-            Icon(Icons.support_agent_rounded, color: TemaPsicobloom.colorPrincipal),
+            Icon(
+              Icons.support_agent_rounded,
+              color: TemaPsicobloom.colorPrincipal,
+            ),
             SizedBox(width: 8),
             Text(
               'Líneas de ayuda y apoyo',
@@ -116,7 +120,9 @@ class _PantallaCuestionarioOrientacionState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: TemaPsicobloom.colorAdvertencia,
-          content: Text('Por favor responde las preguntas visibles antes de continuar.'),
+          content: Text(
+            'Por favor responde las preguntas visibles antes de continuar.',
+          ),
           duration: Duration(seconds: 2),
         ),
       );
@@ -146,9 +152,10 @@ class _PantallaCuestionarioOrientacionState
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
+        final navegador = Navigator.of(context);
         final salir = await _confirmarSalida();
         if (salir && mounted) {
-          Navigator.of(context).pop();
+          navegador.pop();
         }
       },
       child: Scaffold(
@@ -171,9 +178,10 @@ class _PantallaCuestionarioOrientacionState
               icon: const Icon(Icons.close_rounded),
               tooltip: 'Salir',
               onPressed: () async {
+                final navegador = Navigator.of(context);
                 final salir = await _confirmarSalida();
                 if (salir && mounted) {
-                  Navigator.of(context).pop();
+                  navegador.pop();
                 }
               },
             ),
@@ -193,8 +201,8 @@ class _PantallaCuestionarioOrientacionState
         body: _controlador.estaProcesando
             ? _construirVistaCargando()
             : _controlador.etapaActual == EtapaCuestionario.introduccion
-                ? _construirVistaIntroduccion()
-                : _construirVistaPreguntas(),
+            ? _construirVistaIntroduccion()
+            : _construirVistaPreguntas(),
       ),
     );
   }
@@ -206,7 +214,9 @@ class _PantallaCuestionarioOrientacionState
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const CircularProgressIndicator(color: TemaPsicobloom.colorPrincipal),
+            const CircularProgressIndicator(
+              color: TemaPsicobloom.colorPrincipal,
+            ),
             const SizedBox(height: 24),
             const Text(
               'Analizando tus respuestas con IA...',
@@ -340,8 +350,11 @@ class _PantallaCuestionarioOrientacionState
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.lock_outline_rounded,
-                          color: TemaPsicobloom.colorSecundario, size: 22),
+                      Icon(
+                        Icons.lock_outline_rounded,
+                        color: TemaPsicobloom.colorSecundario,
+                        size: 22,
+                      ),
                       SizedBox(width: 10),
                       Text(
                         'Privacidad garantizada',
@@ -389,8 +402,9 @@ class _PantallaCuestionarioOrientacionState
   Widget _construirVistaPreguntas() {
     final etapa = _controlador.etapaActual;
     final preguntas = preguntasPorEtapa[etapa] ?? const [];
-    final preguntasVisibles =
-        preguntas.where((p) => p.estaVisible(_controlador.respuestas)).toList();
+    final preguntasVisibles = preguntas
+        .where((p) => p.estaVisible(_controlador.respuestas))
+        .toList();
 
     return Column(
       children: [
@@ -401,7 +415,10 @@ class _PantallaCuestionarioOrientacionState
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: TemaPsicobloom.colorLavanda,
                   borderRadius: BorderRadius.circular(12),
@@ -435,9 +452,12 @@ class _PantallaCuestionarioOrientacionState
         // Lista deslizable de preguntas
         Expanded(
           child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20.0,
+              vertical: 16.0,
+            ),
             itemCount: preguntasVisibles.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 16),
+            separatorBuilder: (_, _) => const SizedBox(height: 16),
             itemBuilder: (context, indice) {
               final pregunta = preguntasVisibles[indice];
               return _construirTarjetaPregunta(pregunta, indice + 1);
@@ -482,7 +502,10 @@ class _PantallaCuestionarioOrientacionState
     );
   }
 
-  Widget _construirTarjetaPregunta(PreguntaOrientacion pregunta, int numeroOrden) {
+  Widget _construirTarjetaPregunta(
+    PreguntaOrientacion pregunta,
+    int numeroOrden,
+  ) {
     final respuestaActual = _controlador.obtenerRespuesta(pregunta.id);
 
     return Container(
@@ -543,7 +566,10 @@ class _PantallaCuestionarioOrientacionState
             InkWell(
               onTap: _mostrarAvisoCrisis,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: TemaPsicobloom.colorFondoInformacion,
                   borderRadius: BorderRadius.circular(8),
@@ -551,8 +577,11 @@ class _PantallaCuestionarioOrientacionState
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.phone_in_talk_rounded,
-                        color: TemaPsicobloom.colorInformacion, size: 16),
+                    Icon(
+                      Icons.phone_in_talk_rounded,
+                      color: TemaPsicobloom.colorInformacion,
+                      size: 16,
+                    ),
                     SizedBox(width: 6),
                     Text(
                       'Línea de contención en crisis 171 (Opción 6)',
@@ -665,7 +694,8 @@ class _PantallaCuestionarioOrientacionState
           value: estaMarcada,
           activeColor: TemaPsicobloom.colorPrincipal,
           controlAffinity: ListTileControlAffinity.leading,
-          onChanged: (_) => _controlador.alternarOpcionMultiple(idPregunta, opcion),
+          onChanged: (_) =>
+              _controlador.alternarOpcionMultiple(idPregunta, opcion),
         );
       }).toList(),
     );

@@ -27,17 +27,16 @@ void main() {
       await probador.pumpAndSettle();
 
       // Titulo y descargo de responsabilidad
-      expect(find.text('Cuestionario de Orientación'), findsOneWidget);
-      expect(find.text('Descargo de responsabilidad médica'), findsOneWidget);
+      expect(find.text('Introducción y Consentimiento'), findsOneWidget);
+      expect(find.text('Aviso importante y descargo ético'), findsOneWidget);
       expect(
-        find.textContaining('NO constituye un diagnóstico médico'),
+        find.textContaining(
+          'NO constituye una respuesta médica ni un diagnóstico psicológico verídico',
+        ),
         findsOneWidget,
       );
-      expect(
-        find.textContaining('171 (Opción 6)'),
-        findsOneWidget,
-      );
-      expect(find.text('Comenzar cuestionario'), findsOneWidget);
+      expect(find.text('Privacidad garantizada'), findsOneWidget);
+      expect(find.text('Entendido y comenzar'), findsOneWidget);
     },
   );
 
@@ -47,21 +46,25 @@ void main() {
       await probador.pumpWidget(crearPantallaDePrueba());
       await probador.pumpAndSettle();
 
-      // Pulsar Comenzar cuestionario
-      await probador.tap(find.text('Comenzar cuestionario'));
+      // Pulsar Entendido y comenzar
+      await probador.ensureVisible(find.text('Entendido y comenzar'));
+      await probador.pumpAndSettle();
+      await probador.tap(find.text('Entendido y comenzar'));
       await probador.pumpAndSettle();
 
-      // Debe mostrar la primera etapa de evaluacion: Estado de Animo
-      expect(find.text('Estado de Ánimo (Depresión)'), findsWidgets);
+      // Debe mostrar la primera etapa de evaluacion: Estado de animo
+      expect(find.text('Estado de ánimo'), findsWidgets);
       expect(find.text('Etapa 2 de 10'), findsOneWidget);
-      expect(find.text('Siguiente etapa'), findsOneWidget);
+      expect(find.text('Siguiente'), findsOneWidget);
 
       // Si se pulsa siguiente sin responder, muestra aviso informativo
-      await probador.tap(find.text('Siguiente etapa'));
+      await probador.tap(find.text('Siguiente'));
       await probador.pumpAndSettle();
 
       expect(
-        find.text('Por favor responde todas las preguntas de esta sección antes de continuar.'),
+        find.text(
+          'Por favor responde las preguntas visibles antes de continuar.',
+        ),
         findsOneWidget,
       );
     },
@@ -74,7 +77,9 @@ void main() {
       await probador.pumpAndSettle();
 
       // Entrar al cuestionario
-      await probador.tap(find.text('Comenzar cuestionario'));
+      await probador.ensureVisible(find.text('Entendido y comenzar'));
+      await probador.pumpAndSettle();
+      await probador.tap(find.text('Entendido y comenzar'));
       await probador.pumpAndSettle();
 
       // Pulsar el boton de cerrar (X) en el AppBar
@@ -83,12 +88,14 @@ void main() {
 
       expect(find.text('¿Deseas salir del cuestionario?'), findsOneWidget);
       expect(
-        find.textContaining('Tus respuestas temporales en memoria se descartarán'),
+        find.textContaining(
+          'Tus respuestas temporales en memoria se descartarán',
+        ),
         findsOneWidget,
       );
 
       // Cancelar salida
-      await probador.tap(find.text('Continuar respondiendo'));
+      await probador.tap(find.text('Continuar cuestionario'));
       await probador.pumpAndSettle();
 
       // Permanece en el cuestionario
