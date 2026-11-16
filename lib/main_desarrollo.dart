@@ -1,10 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'configuracion/configuracion_supabase.dart';
 import 'nucleo/tema/tema_psicobloom.dart';
 
 import 'package:boom/modulos/paciente/vistas/pantalla_inicio_paciente.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializa Supabase si se inyectaron las credenciales en tiempo de
+  // compilacion (--dart-define-from-file=configuracion_supabase.json).
+  // Sin credenciales el modo desarrollo sigue funcionando con datos simulados.
+  if (ConfiguracionSupabase.estaConfigurado) {
+    await Supabase.initialize(
+      url: ConfiguracionSupabase.url,
+      publishableKey: ConfiguracionSupabase.claveAnon,
+    );
+  }
+
   runApp(const AplicacionPsicoBloomDesarrollo());
 }
 
