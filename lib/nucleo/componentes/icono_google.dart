@@ -34,7 +34,8 @@ class _PintorLogoGoogle extends CustomPainter {
     final Paint pincel = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = grosor
-      ..strokeCap = StrokeCap.butt;
+      ..strokeCap = StrokeCap.butt
+      ..isAntiAlias = true;
 
     // Arco Rojo (superior)
     pincel.color = rojoGoogle;
@@ -55,7 +56,8 @@ class _PintorLogoGoogle extends CustomPainter {
     // Barra horizontal central azul
     final Paint pincelBarra = Paint()
       ..color = azulGoogle
-      ..style = PaintingStyle.fill;
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
 
     final Rect barraAzul = Rect.fromLTWH(
       centro.dx - grosor * 0.1,

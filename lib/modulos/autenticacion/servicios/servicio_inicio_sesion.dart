@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:boom/configuracion/configuracion_supabase.dart';
@@ -71,6 +72,31 @@ class ServicioInicioSesion {
         }
       }
       rethrow;
+    }
+  }
+
+  /// Inicia OAuth de Google y retorna a la app móvil mediante su esquema propio.
+  /// En web, Supabase conserva la URL actual como destino de retorno.
+  Future<void> iniciarConGoogle() async {
+    if (!ConfiguracionSupabase.estaConfigurado) {
+      throw const ErrorInicioSesion(
+        'El servicio de acceso no está disponible en este momento. Inténtalo más tarde.',
+      );
+    }
+
+    final inicioCorrecto = await Supabase.instance.client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: kIsWeb
+          ? Uri.base.replace(queryParameters: const {}, fragment: '').toString()
+          : 'psicobloom://acceso/',
+      authScreenLaunchMode: kIsWeb
+          ? LaunchMode.platformDefault
+          : LaunchMode.externalApplication,
+    );
+    if (!inicioCorrecto) {
+      throw const ErrorInicioSesion(
+        'No se pudo abrir el acceso con Google. Inténtalo nuevamente.',
+      );
     }
   }
 

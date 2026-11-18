@@ -8,10 +8,9 @@ import 'package:boom/nucleo/componentes/icono_google.dart';
 import 'package:boom/nucleo/utilidades/traductor_errores_supabase.dart';
 import 'package:boom/modulos/autenticacion/vistas/pantalla_recuperar_clave.dart';
 import 'package:boom/modulos/autenticacion/vistas/pantalla_registro_paso_uno.dart';
-import 'package:boom/modulos/autenticacion/vistas/pantalla_completar_perfil.dart';
 
 /// Inicio de sesion real con correo y clave, conservando la identidad visual.
-/// El boton Google conserva la previsualizacion existente; aun no autentica.
+/// La opcion Google usa OAuth de Supabase igual que el acceso con correo.
 class PantallaIniciarSesion extends StatefulWidget {
   const PantallaIniciarSesion({
     super.key,
@@ -32,6 +31,7 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
   late final ControladorInicioSesion _controladorInicioSesion;
 
   bool _mostrarClave = false;
+  bool _navegandoGoogle = false;
   bool get _estaCargando => _controladorInicioSesion.estaCargando;
 
   @override
@@ -46,6 +46,20 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
   void _actualizarVista() {
     if (mounted) {
       setState(() {});
+      final perfilGoogle = _controladorInicioSesion.perfilGoogle;
+      if (perfilGoogle != null && !_navegandoGoogle) {
+        _navegandoGoogle = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Navigator.of(context).pushAndRemoveUntil<void>(
+            MaterialPageRoute<void>(
+              builder: (context) =>
+                  NavegadorRoles.construirDestinoPorPerfil(perfilGoogle),
+            ),
+            (ruta) => false,
+          );
+        });
+      }
     }
   }
 
@@ -100,53 +114,16 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
     );
   }
 
-  void _continuarConGoogle() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: TemaPsicobloom.colorSuperficie,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Row(
-          children: [
-            IconoGoogle(tamano: 22),
-            SizedBox(width: 10),
-            Text(
-              'Acceso con Google',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: TemaPsicobloom.colorTexto,
-              ),
-            ),
-          ],
-        ),
-        content: const Text(
-          'PsicoBloom utilizará el flujo seguro OAuth de Supabase sin pedir contraseñas dentro de la aplicación.\n\n¿Deseas previsualizar la pantalla de completar perfil para nuevos usuarios?',
-          style: TextStyle(color: TemaPsicobloom.colorTexto, height: 1.4),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PantallaCompletarPerfil(
-                    correoGoogle: 'ejemplo.usuario@gmail.com',
-                    nombreSugerido: 'Carlos',
-                  ),
-                ),
-              );
-            },
-            child: const Text('Ver completar perfil'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Entendido'),
-          ),
-        ],
-      ),
-    );
+  Future<void> _continuarConGoogle() async {
+    if (_estaCargando) return;
+    FocusScope.of(context).unfocus();
+    final inicioCorrecto = await _controladorInicioSesion.iniciarConGoogle();
+    if (!mounted || inicioCorrecto) return;
+    final mensaje = _controladorInicioSesion.mensajeError;
+    if (mensaje == null) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(mensaje)));
   }
 
   @override

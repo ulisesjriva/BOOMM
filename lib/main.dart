@@ -28,9 +28,28 @@ Future<void> main() async {
       publishableKey: ConfiguracionSupabase.claveAnon,
       authOptions: FlutterAuthClientOptions(
         detectSessionInUriPredicate: (uri) {
-          // Los token_hash HTTPS los procesan nuestras pantallas con verifyOTP.
-          // Conserva los antiguos callbacks del esquema propio para el SDK.
+          // El SDK procesa el callback OAuth web; token_hash sigue a cargo
+          // de nuestras pantallas de confirmacion y recuperacion.
+          if (kIsWeb) {
+            try {
+              final valores = {
+                ...uri.queryParameters,
+                ...Uri.splitQueryString(uri.fragment),
+              };
+              if (valores.containsKey('token_hash')) return false;
+              return [
+                'code',
+                'access_token',
+                'error',
+                'error_code',
+                'error_description',
+              ].any(valores.containsKey);
+            } on FormatException {
+              return false;
+            }
+          }
           if (EnlaceAutenticacion.esUrlWebPropia(uri)) return false;
+          // Conserva los callbacks del esquema propio para el SDK.
           if (uri.scheme != 'psicobloom' || uri.host != 'acceso') return false;
           try {
             final valores = {
@@ -89,7 +108,7 @@ class _AplicacionPsicoBloomState extends State<AplicacionPsicoBloom> {
     _resolucionSesion = widget.servicioSesion.resolverSesionActual();
     if (widget.flujoEnlaces != null ||
         widget.obtenerEnlaceInicial != null ||
-        (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)) {
+        !kIsWeb) {
       unawaited(_escucharEnlaces());
     }
   }

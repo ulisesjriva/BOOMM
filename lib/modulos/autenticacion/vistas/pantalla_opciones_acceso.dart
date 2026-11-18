@@ -1,63 +1,65 @@
 import 'package:flutter/material.dart';
+import 'package:boom/modulos/autenticacion/controladores/controlador_inicio_sesion.dart';
+import 'package:boom/modulos/autenticacion/vistas/navegador_roles.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
 import 'package:boom/nucleo/componentes/icono_google.dart';
 import 'package:boom/modulos/autenticacion/vistas/pantalla_iniciar_sesion.dart';
 import 'package:boom/modulos/autenticacion/vistas/pantalla_registro_paso_uno.dart';
-import 'package:boom/modulos/autenticacion/vistas/pantalla_completar_perfil.dart';
 
 /// Pantalla donde el usuario elige su metodo de acceso:
 /// Iniciar sesion, Crear una cuenta o Continuar con Google.
-class PantallaOpcionesAcceso extends StatelessWidget {
+class PantallaOpcionesAcceso extends StatefulWidget {
   const PantallaOpcionesAcceso({super.key});
 
-  void _continuarConGoogle(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: TemaPsicobloom.colorSuperficie,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Row(
-          children: [
-            IconoGoogle(tamano: 22),
-            SizedBox(width: 10),
-            Text(
-              'Acceso con Google',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: TemaPsicobloom.colorTexto,
-              ),
-            ),
-          ],
-        ),
-        content: const Text(
-          'PsicoBloom conectará de forma segura con Google mediante OAuth en Supabase sin pedir contraseñas externas dentro de la app.\n\n¿Deseas previsualizar la pantalla de completar perfil para nuevos usuarios?',
-          style: TextStyle(color: TemaPsicobloom.colorTexto, height: 1.4),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PantallaCompletarPerfil(
-                    correoGoogle: 'usuario.nuevo@gmail.com',
-                    nombreSugerido: 'Sara',
-                  ),
-                ),
-              );
-            },
-            child: const Text('Ver completar perfil'),
+  @override
+  State<PantallaOpcionesAcceso> createState() => _PantallaOpcionesAccesoState();
+}
+
+class _PantallaOpcionesAccesoState extends State<PantallaOpcionesAcceso> {
+  late final ControladorInicioSesion _controlador;
+  bool _navegandoGoogle = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controlador = ControladorInicioSesion()..addListener(_actualizarVista);
+  }
+
+  void _actualizarVista() {
+    if (!mounted) return;
+    setState(() {});
+    final perfil = _controlador.perfilGoogle;
+    if (perfil != null && !_navegandoGoogle) {
+      _navegandoGoogle = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil<void>(
+          MaterialPageRoute<void>(
+            builder: (_) => NavegadorRoles.construirDestinoPorPerfil(perfil),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Entendido'),
-          ),
-        ],
-      ),
-    );
+          (ruta) => false,
+        );
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _controlador.removeListener(_actualizarVista);
+    _controlador.dispose();
+    super.dispose();
+  }
+
+  Future<void> _continuarConGoogle() async {
+    if (_controlador.estaCargando) return;
+    final inicioCorrecto = await _controlador.iniciarConGoogle();
+    if (!mounted || inicioCorrecto) return;
+    final mensaje = _controlador.mensajeError;
+    if (mensaje != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(mensaje)));
+    }
   }
 
   @override
@@ -263,7 +265,9 @@ class PantallaOpcionesAcceso extends StatelessWidget {
 
                         // Opcion 3: Continuar con Google
                         OutlinedButton(
-                          onPressed: () => _continuarConGoogle(context),
+                          onPressed: _controlador.estaCargando
+                              ? null
+                              : _continuarConGoogle,
                           style: OutlinedButton.styleFrom(
                             foregroundColor: TemaPsicobloom.colorTexto,
                             side: const BorderSide(
@@ -271,14 +275,16 @@ class PantallaOpcionesAcceso extends StatelessWidget {
                               width: 1.2,
                             ),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              IconoGoogle(tamano: 20),
-                              SizedBox(width: 10),
+                              const IconoGoogle(tamano: 20),
+                              const SizedBox(width: 10),
                               Text(
-                                'Continuar con Google',
-                                style: TextStyle(
+                                _controlador.estaCargando
+                                    ? 'Conectando con Google…'
+                                    : 'Continuar con Google',
+                                style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600,
                                   color: TemaPsicobloom.colorTexto,

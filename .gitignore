@@ -52,3 +52,4 @@ configuracion_supabase.json
 configuracion_supabase*.json
 .env
 .env.*
+supabase/.temp/

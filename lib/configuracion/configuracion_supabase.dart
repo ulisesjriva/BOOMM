@@ -27,16 +27,4 @@ class ConfiguracionSupabase {
 
   /// Devuelve true si ambos valores fueron provistos en la compilacion.
   static bool get estaConfigurado => url.isNotEmpty && claveAnon.isNotEmpty;
-
-  /// Clave de API de Google Maps inyectada opcionalmente con:
-  ///   --dart-define=GOOGLE_MAPS_API_KEY=clave_google_maps
-  static const String claveGoogleMaps = String.fromEnvironment(
-    'GOOGLE_MAPS_API_KEY',
-    defaultValue: '',
-  );
-
-  /// Devuelve true solo cuando se configuro una clave de Google Maps,
-  /// evitando instanciar el PlatformView nativo de GoogleMap si no existe
-  /// com.google.android.geo.API_KEY configurado en Android.
-  static bool get tieneClaveGoogleMaps => claveGoogleMaps.trim().isNotEmpty;
 }
