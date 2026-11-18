@@ -58,7 +58,21 @@ class _PantallaOpcionesAccesoState extends State<PantallaOpcionesAcceso> {
     final mensaje = _controlador.mensajeError;
     if (mensaje != null) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(mensaje)));
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            backgroundColor: TemaPsicobloom.colorPrincipalOscuro,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            content: Text(
+              mensaje,
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+            ),
+            duration: const Duration(seconds: 6),
+          ),
+        );
     }
   }
 

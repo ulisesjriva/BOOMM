@@ -123,7 +123,20 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
     if (mensaje == null) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(mensaje)));
+      ..showSnackBar(
+        SnackBar(
+          backgroundColor: TemaPsicobloom.colorPrincipalOscuro,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          content: Text(
+            mensaje,
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+          ),
+          duration: const Duration(seconds: 6),
+        ),
+      );
   }
 
   @override
@@ -403,14 +416,16 @@ class _PantallaIniciarSesionState extends State<PantallaIniciarSesion> {
                                 width: 1.2,
                               ),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                IconoGoogle(tamano: 20),
-                                SizedBox(width: 10),
+                                const IconoGoogle(tamano: 20),
+                                const SizedBox(width: 10),
                                 Text(
-                                  'Continuar con Google',
-                                  style: TextStyle(
+                                  _estaCargando
+                                      ? 'Conectando con Google…'
+                                      : 'Continuar con Google',
+                                  style: const TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
                                     color: TemaPsicobloom.colorTexto,
