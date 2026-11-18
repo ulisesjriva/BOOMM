@@ -2,19 +2,41 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "PsicoBloom (con Supabase)",
+      "name": "PsicoBloom (Android - con Supabase)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
+      "deviceId": "emulator-5554",
       "toolArgs": [
         "--dart-define-from-file=configuracion_supabase.json"
       ]
     },
     {
-      "name": "PsicoBloom - Modo Desarrollo (Paciente con datos simulados)",
+      "name": "PsicoBloom (Chrome - con Supabase)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "chrome",
+      "toolArgs": [
+        "--dart-define-from-file=configuracion_supabase.json"
+      ]
+    },
+    {
+      "name": "PsicoBloom - Modo Desarrollo Android (con Supabase)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main_desarrollo.dart",
+      "deviceId": "emulator-5554",
+      "toolArgs": [
+        "--dart-define-from-file=configuracion_supabase.json"
+      ]
+    },
+    {
+      "name": "PsicoBloom - Modo Desarrollo Chrome (con Supabase)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main_desarrollo.dart",
+      "deviceId": "chrome",
       "toolArgs": [
         "--dart-define-from-file=configuracion_supabase.json"
       ]
