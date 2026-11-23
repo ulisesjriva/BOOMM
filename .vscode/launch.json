@@ -18,6 +18,7 @@
       "program": "lib/main.dart",
       "deviceId": "chrome",
       "toolArgs": [
+        "--web-port=7357",
         "--dart-define-from-file=configuracion_supabase.json"
       ]
     },
@@ -38,6 +39,7 @@
       "program": "lib/main_desarrollo.dart",
       "deviceId": "chrome",
       "toolArgs": [
+        "--web-port=7357",
         "--dart-define-from-file=configuracion_supabase.json"
       ]
     }
