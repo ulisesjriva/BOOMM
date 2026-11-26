@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:boom/configuracion/configuracion_supabase.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
+import 'package:boom/modulos/paciente/componentes/avatar_paciente.dart';
 import 'package:boom/modulos/paciente/componentes/barra_navegacion_paciente.dart';
 import 'package:boom/modulos/paciente/componentes/tarjeta_profesional.dart';
 import 'package:boom/modelos/perfil_usuario.dart';
@@ -22,7 +23,6 @@ import 'pantalla_mapa_profesionales.dart';
 import 'pantalla_mis_citas_paciente.dart';
 import 'pantalla_perfil_paciente.dart';
 import 'pantalla_perfil_publico_profesional.dart';
-
 
 /// Pantalla 5: Inicio del paciente.
 /// Representa la interfaz principal a la que accede el paciente tras autenticarse.
@@ -102,6 +102,28 @@ class _PantallaInicioPacienteState extends State<PantallaInicioPaciente> {
       return nombre;
     }
     return widget.nombrePaciente;
+  }
+
+  String get _nombreCompletoMostrado {
+    final completo = _perfilActual?.nombreCompleto.trim();
+    if (completo != null && completo.isNotEmpty) {
+      return completo;
+    }
+    return _nombreMostrado;
+  }
+
+  /// Resuelve la foto del paciente priorizando el perfil y, como respaldo,
+  /// la imagen entregada por el proveedor de sesion (por ejemplo Google).
+  String? get _fotoPacienteMostrada {
+    final fotoPerfil = _perfilActual?.fotoUrl?.trim();
+    if (fotoPerfil != null && fotoPerfil.isNotEmpty) {
+      return fotoPerfil;
+    }
+    final fotoSesion = widget.servicioSesion.obtenerFotoUsuarioActual()?.trim();
+    if (fotoSesion != null && fotoSesion.isNotEmpty) {
+      return fotoSesion;
+    }
+    return null;
   }
 
   void _alternarFavorito(String idProfesional) {
@@ -352,7 +374,7 @@ class _PantallaInicioPacienteState extends State<PantallaInicioPaciente> {
     );
   }
 
-  /// Saludo al paciente con ilustracion decorativa representativa de bienestar emocional.
+  /// Saludo al paciente acompañado de su foto circular o avatar con iniciales.
   Widget _construirSeccionBienvenida() {
     return Container(
       padding: const EdgeInsets.all(18.0),
@@ -399,22 +421,21 @@ class _PantallaInicioPacienteState extends State<PantallaInicioPaciente> {
               ],
             ),
           ),
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: TemaPsicobloom.colorLavanda.withValues(alpha: 0.5),
-              shape: BoxShape.circle,
-              border: Border.all(color: TemaPsicobloom.colorBorde, width: 1.0),
-            ),
-            child: const Icon(
-              Icons.self_improvement_rounded,
-              color: TemaPsicobloom.colorPrincipal,
-              size: 42,
-            ),
-          ),
+          const SizedBox(width: 12),
+          _construirAvatarPaciente(),
         ],
       ),
+    );
+  }
+
+  /// Avatar circular compartido con Perfil: muestra foto de perfil/Google si existe
+  /// o las iniciales del paciente.
+  Widget _construirAvatarPaciente() {
+    return AvatarPaciente(
+      key: const Key('avatarPacienteInicio'),
+      nombreCompleto: _nombreCompletoMostrado,
+      fotoUrl: _fotoPacienteMostrada,
+      diametro: 68,
     );
   }
 

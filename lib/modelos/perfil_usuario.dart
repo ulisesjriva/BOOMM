@@ -8,6 +8,7 @@ class PerfilUsuario {
   final String rol;
   final String aprobacion;
   final bool cuentaActiva;
+  final String? fotoUrl;
 
   const PerfilUsuario({
     required this.id,
@@ -17,6 +18,7 @@ class PerfilUsuario {
     required this.rol,
     required this.aprobacion,
     required this.cuentaActiva,
+    this.fotoUrl,
   });
 
   String get nombreCompleto => '${nombre.trim()} ${apellido.trim()}'.trim();
@@ -28,6 +30,7 @@ class PerfilUsuario {
     String? rol,
     String? aprobacion,
     bool? cuentaActiva,
+    String? fotoUrl,
   }) {
     return PerfilUsuario(
       id: id,
@@ -37,6 +40,7 @@ class PerfilUsuario {
       rol: rol ?? this.rol,
       aprobacion: aprobacion ?? this.aprobacion,
       cuentaActiva: cuentaActiva ?? this.cuentaActiva,
+      fotoUrl: fotoUrl ?? this.fotoUrl,
     );
   }
 
@@ -49,6 +53,11 @@ class PerfilUsuario {
     final cuentaActiva = (datos['cuenta_activa'] ?? datos['activo']);
     final rol = (datos['rol'] ?? datos['nombre_rol']);
     final aprobacion = datos['aprobacion'] ?? 'no_aplica';
+    final fotoBruta =
+        datos['foto_url'] ?? datos['avatar_url'] ?? datos['picture'];
+    final fotoLimpia = fotoBruta is String && fotoBruta.trim().isNotEmpty
+        ? fotoBruta.trim()
+        : null;
 
     if (id is! String ||
         nombre is! String ||
@@ -73,6 +82,7 @@ class PerfilUsuario {
       rol: rol as String,
       aprobacion: aprobacion as String,
       cuentaActiva: cuentaActiva,
+      fotoUrl: fotoLimpia,
     );
   }
 }

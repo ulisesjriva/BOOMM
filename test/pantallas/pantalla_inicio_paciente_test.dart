@@ -1,9 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:boom/modelos/perfil_usuario.dart';
+import 'package:boom/modulos/autenticacion/servicios/servicio_sesion.dart';
 import 'package:boom/modulos/paciente/controladores/gestor_resultado_orientacion.dart';
 import 'package:boom/modulos/paciente/modelos/cuestionario_orientacion.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/modulos/paciente/vistas/pantalla_inicio_paciente.dart';
+
+class _ServicioSesionConFotoGoogle extends ServicioSesion {
+  final String? fotoGoogle;
+
+  const _ServicioSesionConFotoGoogle(this.fotoGoogle);
+
+  @override
+  String? obtenerFotoUsuarioActual() => fotoGoogle;
+}
 
 void main() {
   setUp(() {
@@ -31,9 +42,18 @@ void main() {
       expect(find.text('PsicoBloom'), findsOneWidget);
       expect(find.byIcon(Icons.notifications_none_rounded), findsOneWidget);
 
-      // 2. Saludo al paciente
+      // 2. Saludo al paciente y avatar circular (sin icono meditando)
       expect(find.text('Hola, María 👋'), findsOneWidget);
       expect(find.text('¿En qué podemos ayudarte?'), findsOneWidget);
+      expect(find.byIcon(Icons.self_improvement_rounded), findsNothing);
+      expect(find.byKey(const Key('avatarPacienteInicio')), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('avatarPacienteInicio')),
+          matching: find.text('M'),
+        ),
+        findsOneWidget,
+      );
 
       // 3. Tarjetas de accion rapida
       expect(find.text('Buscar profesional'), findsOneWidget);
@@ -179,4 +199,63 @@ void main() {
 
     expect(find.text('Encuentra el apoyo que necesitas'), findsOneWidget);
   });
+
+  testWidgets(
+    'Avatar de inicio muestra iniciales completas sin foto y usa foto de perfil o Google cuando existe',
+    (WidgetTester probador) async {
+      await probador.pumpWidget(
+        MaterialApp(
+          theme: TemaPsicobloom.obtenerTema(),
+          home: const PantallaInicioPaciente(
+            perfilInicial: PerfilUsuario(
+              id: 'pac-1',
+              nombre: 'Ana',
+              apellido: 'Gómez',
+              rol: 'paciente',
+              aprobacion: 'no_aplica',
+              cuentaActiva: true,
+            ),
+          ),
+        ),
+      );
+      await probador.pump();
+
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('avatarPacienteInicio')),
+          matching: find.text('AG'),
+        ),
+        findsOneWidget,
+      );
+
+      // Cuando la sesion de Google provee foto, renderiza Image.network en el avatar circular.
+      await probador.pumpWidget(
+        MaterialApp(
+          theme: TemaPsicobloom.obtenerTema(),
+          home: const PantallaInicioPaciente(
+            perfilInicial: PerfilUsuario(
+              id: 'pac-2',
+              nombre: 'Ana',
+              apellido: 'Gómez',
+              rol: 'paciente',
+              aprobacion: 'no_aplica',
+              cuentaActiva: true,
+            ),
+            servicioSesion: _ServicioSesionConFotoGoogle(
+              'https://lh3.googleusercontent.com/demo-avatar.jpg',
+            ),
+          ),
+        ),
+      );
+      await probador.pump();
+
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('avatarPacienteInicio')),
+          matching: find.byType(Image),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
 }

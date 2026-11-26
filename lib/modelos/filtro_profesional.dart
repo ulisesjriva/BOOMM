@@ -11,10 +11,23 @@ enum CriterioOrdenamiento {
 /// Representa el conjunto de filtros y criterios de ordenamiento aplicables
 /// a la busqueda interactiva de profesionales en PsicoBloom.
 class FiltroProfesional {
+  static const String opcionCercaniaTodos = 'Todos';
+  static const String opcionCercaniaMasCercanos = 'Más cercanos';
+  static const String opcionCercaniaMenorTiempoRuta = 'Menor tiempo de ruta';
+  static const String opcionCercaniaMenorDistancia = 'Menor distancia';
+
+  static const List<String> opcionesCercania = <String>[
+    opcionCercaniaTodos,
+    opcionCercaniaMasCercanos,
+    opcionCercaniaMenorTiempoRuta,
+    opcionCercaniaMenorDistancia,
+  ];
+
   final String textoBusqueda;
   final String especialidad;
   final String disponibilidad;
   final String modalidad;
+  final String cercania;
   final CriterioOrdenamiento ordenamiento;
 
   const FiltroProfesional({
@@ -22,6 +35,7 @@ class FiltroProfesional {
     this.especialidad = 'Todas',
     this.disponibilidad = 'Todas',
     this.modalidad = 'Todas',
+    this.cercania = opcionCercaniaTodos,
     this.ordenamiento = CriterioOrdenamiento.nombreAscendente,
   });
 
@@ -36,6 +50,7 @@ class FiltroProfesional {
         especialidad != 'Todas' ||
         disponibilidad != 'Todas' ||
         modalidad != 'Todas' ||
+        cercania != opcionCercaniaTodos ||
         ordenamiento != CriterioOrdenamiento.nombreAscendente;
   }
 
@@ -45,6 +60,7 @@ class FiltroProfesional {
     String? especialidad,
     String? disponibilidad,
     String? modalidad,
+    String? cercania,
     CriterioOrdenamiento? ordenamiento,
   }) {
     return FiltroProfesional(
@@ -52,6 +68,7 @@ class FiltroProfesional {
       especialidad: especialidad ?? this.especialidad,
       disponibilidad: disponibilidad ?? this.disponibilidad,
       modalidad: modalidad ?? this.modalidad,
+      cercania: cercania ?? this.cercania,
       ordenamiento: ordenamiento ?? this.ordenamiento,
     );
   }

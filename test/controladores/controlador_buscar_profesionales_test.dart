@@ -5,7 +5,19 @@ import 'package:boom/datos/profesionales_simulados.dart';
 import 'package:boom/modelos/filtro_profesional.dart';
 import 'package:boom/modelos/profesional.dart';
 import 'package:boom/modulos/paciente/controladores/controlador_buscar_profesionales.dart';
+import 'package:boom/modulos/paciente/servicios/servicio_rutas_consultorio.dart';
+import 'package:boom/modulos/profesional/servicios/servicio_ubicacion_consultorio.dart';
 import 'package:boom/repositorios/repositorio_profesionales_simulado.dart';
+
+class _ServicioUbicacionFija extends ServicioUbicacionConsultorio {
+  final ResultadoUbicacionDispositivo resultado;
+
+  const _ServicioUbicacionFija(this.resultado);
+
+  @override
+  Future<ResultadoUbicacionDispositivo> obtenerUbicacionActual() async =>
+      resultado;
+}
 
 class RepositorioConDemora extends RepositorioProfesionalesSimulado {
   final solicitudes = <Completer<List<Profesional>>>[];
@@ -101,4 +113,208 @@ void main() {
     await consulta;
     expect(notificaciones, cantidadAntesDeCerrar);
   });
+
+  test('Filtro de cercania ordena por distancia y tiempo de ruta, y conserva resultados si no hay permiso GPS', () async {
+    const profLejano = Profesional(
+      id: 'prof-lejano',
+      nombre: 'Dr. Lejano',
+      especialidad: 'Psicología Clínica',
+      modalidad: 'Presencial',
+      disponibilidadTexto: 'Hoy',
+      distanciaTexto: '3.0 km',
+      direccionConsultorio: 'Norte',
+      latitud: -1.6500,
+      longitud: -78.6600,
+    );
+    const profCercano = Profesional(
+      id: 'prof-cercano',
+      nombre: 'Dra. Cercana',
+      especialidad: 'Psicología Clínica',
+      modalidad: 'Presencial',
+      disponibilidadTexto: 'Hoy',
+      distanciaTexto: '0.5 km',
+      direccionConsultorio: 'Centro',
+      latitud: -1.6710,
+      longitud: -78.6470,
+    );
+
+    final controladorConGps = ControladorBuscarProfesionales(
+      repositorio: RepositorioProfesionalesSimulado(
+        fuenteDatos: const [profLejano, profCercano],
+      ),
+      servicioUbicacion: const _ServicioUbicacionFija(
+        ResultadoUbicacionDispositivo.obtenida(
+          latitud: -1.6709,
+          longitud: -78.6471,
+        ),
+      ),
+      servicioRutas: ServicioRutasConsultorio(
+        invocadorPorTransporte:
+            ({
+              required origenLatitud,
+              required origenLongitud,
+              required destinoLatitud,
+              required destinoLongitud,
+              required medioTransporte,
+            }) async {
+              final esCercano =
+                  (destinoLatitud - profCercano.latitud).abs() < 0.001;
+              return <String, dynamic>{
+                'puntosRuta': <Map<String, double>>[
+                  {'latitud': origenLatitud, 'longitud': origenLongitud},
+                  {'latitud': destinoLatitud, 'longitud': destinoLongitud},
+                ],
+                // Simula que la ruta al lejano toma menos tiempo (180 s vs 420 s)
+                'distanciaMetros': esCercano ? 900.0 : 2500.0,
+                'duracionEstimadaSegundos': esCercano ? 420 : 180,
+                'medioTransporte': medioTransporte,
+                'proveedor': 'openrouteservice',
+              };
+            },
+      ),
+    );
+    addTearDown(controladorConGps.dispose);
+
+    await controladorConGps.inicializar();
+    await controladorConGps.cambiarCercania(
+      FiltroProfesional.opcionCercaniaMasCercanos,
+    );
+    expect(controladorConGps.mensajeCercania, isNull);
+    expect(controladorConGps.profesionales.first.id, 'prof-cercano');
+    expect(controladorConGps.obtenerResumenCercania('prof-cercano'), isNotNull);
+
+    await controladorConGps.cambiarCercania(
+      FiltroProfesional.opcionCercaniaMenorTiempoRuta,
+    );
+    expect(controladorConGps.mensajeCercania, isNull);
+    expect(controladorConGps.profesionales.first.id, 'prof-lejano');
+
+    // Sin permiso GPS: no rompe la busqueda y muestra mensaje claro
+    final controladorSinGps = ControladorBuscarProfesionales(
+      repositorio: RepositorioProfesionalesSimulado(
+        fuenteDatos: const [profLejano, profCercano],
+      ),
+      servicioUbicacion: const _ServicioUbicacionFija(
+        ResultadoUbicacionDispositivo.fallo(
+          EstadoUbicacionDispositivo.permisoRechazado,
+          'Permiso denegado',
+        ),
+      ),
+    );
+    addTearDown(controladorSinGps.dispose);
+
+    await controladorSinGps.inicializar();
+    await controladorSinGps.cambiarCercania(
+      FiltroProfesional.opcionCercaniaMasCercanos,
+    );
+    expect(controladorSinGps.profesionales.length, 2);
+    expect(controladorSinGps.mensajeCercania, isNotNull);
+    expect(controladorSinGps.mensajeCercania, contains('demás filtros'));
+  });
+
+  test(
+    'Filtro de cercania ordena por distancia y tiempo de ruta, y conserva resultados si no hay permiso GPS',
+    () async {
+      const profLejano = Profesional(
+        id: 'prof-lejano',
+        nombre: 'Dr. Lejano',
+        especialidad: 'Psicología Clínica',
+        modalidad: 'Presencial',
+        disponibilidadTexto: 'Hoy',
+        distanciaTexto: '3.0 km',
+        direccionConsultorio: 'Norte',
+        latitud: -1.6500,
+        longitud: -78.6600,
+      );
+      const profCercano = Profesional(
+        id: 'prof-cercano',
+        nombre: 'Dra. Cercana',
+        especialidad: 'Psicología Clínica',
+        modalidad: 'Presencial',
+        disponibilidadTexto: 'Hoy',
+        distanciaTexto: '0.5 km',
+        direccionConsultorio: 'Centro',
+        latitud: -1.6710,
+        longitud: -78.6470,
+      );
+
+      final controladorConGps = ControladorBuscarProfesionales(
+        repositorio: RepositorioProfesionalesSimulado(
+          fuenteDatos: const [profLejano, profCercano],
+        ),
+        servicioUbicacion: const _ServicioUbicacionFija(
+          ResultadoUbicacionDispositivo.obtenida(
+            latitud: -1.6709,
+            longitud: -78.6471,
+          ),
+        ),
+        servicioRutas: ServicioRutasConsultorio(
+          invocadorPorTransporte:
+              ({
+                required origenLatitud,
+                required origenLongitud,
+                required destinoLatitud,
+                required destinoLongitud,
+                required medioTransporte,
+              }) async {
+                final esCercano = (destinoLatitud - profCercano.latitud).abs() < 0.001;
+                return <String, dynamic>{
+                  'puntosRuta': <Map<String, double>>[
+                    {'latitud': origenLatitud, 'longitud': origenLongitud},
+                    {'latitud': destinoLatitud, 'longitud': destinoLongitud},
+                  ],
+                  // Simula que la ruta al lejano toma menos tiempo (180 s vs 420 s)
+                  'distanciaMetros': esCercano ? 900.0 : 2500.0,
+                  'duracionEstimadaSegundos': esCercano ? 420 : 180,
+                  'medioTransporte': medioTransporte,
+                  'proveedor': 'openrouteservice',
+                };
+              },
+        ),
+      );
+      addTearDown(controladorConGps.dispose);
+
+      await controladorConGps.inicializar();
+      await controladorConGps.cambiarCercania(
+        FiltroProfesional.opcionCercaniaMasCercanos,
+      );
+      expect(controladorConGps.mensajeCercania, isNull);
+      expect(controladorConGps.profesionales.first.id, 'prof-cercano');
+      expect(
+        controladorConGps.obtenerResumenCercania('prof-cercano'),
+        isNotNull,
+      );
+
+      await controladorConGps.cambiarCercania(
+        FiltroProfesional.opcionCercaniaMenorTiempoRuta,
+      );
+      expect(controladorConGps.mensajeCercania, isNull);
+      expect(controladorConGps.profesionales.first.id, 'prof-lejano');
+
+      // Sin permiso GPS: no rompe la busqueda y muestra mensaje claro
+      final controladorSinGps = ControladorBuscarProfesionales(
+        repositorio: RepositorioProfesionalesSimulado(
+          fuenteDatos: const [profLejano, profCercano],
+        ),
+        servicioUbicacion: const _ServicioUbicacionFija(
+          ResultadoUbicacionDispositivo.fallo(
+            EstadoUbicacionDispositivo.permisoRechazado,
+            'Permiso denegado',
+          ),
+        ),
+      );
+      addTearDown(controladorSinGps.dispose);
+
+      await controladorSinGps.inicializar();
+      await controladorSinGps.cambiarCercania(
+        FiltroProfesional.opcionCercaniaMasCercanos,
+      );
+      expect(controladorSinGps.profesionales.length, 2);
+      expect(controladorSinGps.mensajeCercania, isNotNull);
+      expect(
+        controladorSinGps.mensajeCercania,
+        contains('demás filtros'),
+      );
+    },
+  );
 }

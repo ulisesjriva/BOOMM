@@ -11,6 +11,7 @@ class TarjetaProfesional extends StatelessWidget {
   final VoidCallback alAlternarFavorito;
   final VoidCallback alVerPerfil;
   final bool mostrarDireccionConsultorio;
+  final String? textoUbicacionPersonalizado;
 
   const TarjetaProfesional({
     super.key,
@@ -19,6 +20,7 @@ class TarjetaProfesional extends StatelessWidget {
     required this.alAlternarFavorito,
     required this.alVerPerfil,
     this.mostrarDireccionConsultorio = false,
+    this.textoUbicacionPersonalizado,
   });
 
   String get _textoEspecialidades {
@@ -29,6 +31,10 @@ class TarjetaProfesional extends StatelessWidget {
   }
 
   String get _textoUbicacion {
+    final personalizado = textoUbicacionPersonalizado?.trim();
+    if (personalizado != null && personalizado.isNotEmpty) {
+      return personalizado;
+    }
     if (mostrarDireccionConsultorio) {
       final direccion = profesional.direccionConsultorio.trim();
       if (direccion.isNotEmpty) {

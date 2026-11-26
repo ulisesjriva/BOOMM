@@ -411,7 +411,7 @@ class _PantallaMapaProfesionalesState extends State<PantallaMapaProfesionales> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Consulta los profesionales disponibles y la ubicación de sus consultorios.',
+                  'Encuentra atención cerca de ti.',
                   style: TextStyle(
                     fontSize: 13.5,
                     color: TemaPsicobloom.colorTextoSecundario,
@@ -422,19 +422,11 @@ class _PantallaMapaProfesionalesState extends State<PantallaMapaProfesionales> {
             ),
           ),
           const SizedBox(width: 12),
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: TemaPsicobloom.colorLavanda.withValues(alpha: 0.6),
-              shape: BoxShape.circle,
-              border: Border.all(color: TemaPsicobloom.colorBorde, width: 1.0),
-            ),
-            child: const Icon(
-              Icons.location_on_rounded,
-              color: TemaPsicobloom.colorPrincipal,
-              size: 30,
-            ),
+          Icon(
+            Icons.location_on_outlined,
+            key: const Key('iconoEncabezadoMapa'),
+            color: TemaPsicobloom.colorPrincipal.withValues(alpha: 0.72),
+            size: 28,
           ),
         ],
       ),

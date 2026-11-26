@@ -79,9 +79,15 @@ class ServicioSesion {
         );
       }
 
-      final perfil = PerfilUsuario.desdeMapa(
+      final perfilBase = PerfilUsuario.desdeMapa(
         Map<String, dynamic>.from(datos.first as Map),
       );
+      final fotoSesion = extraerFotoDesdeMetadatos(usuario.userMetadata);
+      final perfil =
+          (perfilBase.fotoUrl == null || perfilBase.fotoUrl!.trim().isEmpty) &&
+              fotoSesion != null
+          ? perfilBase.copiarCon(fotoUrl: fotoSesion)
+          : perfilBase;
       if (perfil.id != usuario.id) {
         await cerrarSesionLocalSilencioso(cliente);
         return const ResultadoResolucionSesion.sinSesion(
@@ -111,6 +117,32 @@ class ServicioSesion {
       return ResultadoResolucionSesion.errorConexion(mensaje: error.message);
     } catch (_) {
       return const ResultadoResolucionSesion.errorConexion();
+    }
+  }
+
+  /// Extrae una URL de foto valida desde los metadatos de sesion (ej. Google OAuth).
+  static String? extraerFotoDesdeMetadatos(Map<String, dynamic>? metadatos) {
+    if (metadatos == null) return null;
+    for (final clave in const ['foto_url', 'avatar_url', 'picture']) {
+      final valor = metadatos[clave];
+      if (valor is String && valor.trim().isNotEmpty) {
+        return valor.trim();
+      }
+    }
+    return null;
+  }
+
+  /// Obtiene la foto disponible en la sesion activa (por ejemplo, avatar de Google)
+  /// sin realizar llamadas de red ni requerir cambios en el esquema de base de datos.
+  String? obtenerFotoUsuarioActual() {
+    if (!ConfiguracionSupabase.estaConfigurado) {
+      return null;
+    }
+    try {
+      final usuario = Supabase.instance.client.auth.currentUser;
+      return extraerFotoDesdeMetadatos(usuario?.userMetadata);
+    } catch (_) {
+      return null;
     }
   }
 

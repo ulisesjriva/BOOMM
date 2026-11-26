@@ -2,9 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/modelos/profesional.dart';
+import 'package:boom/modulos/profesional/servicios/servicio_ubicacion_consultorio.dart';
 import 'package:boom/repositorios/repositorio_profesionales_simulado.dart';
 import 'package:boom/modulos/paciente/vistas/pantalla_buscar_profesionales.dart';
 import 'package:boom/modulos/paciente/controladores/gestor_favoritos.dart';
+
+class _ServicioUbicacionPruebaBuscar extends ServicioUbicacionConsultorio {
+  final ResultadoUbicacionDispositivo resultado;
+
+  const _ServicioUbicacionPruebaBuscar(this.resultado);
+
+  @override
+  Future<ResultadoUbicacionDispositivo> obtenerUbicacionActual() async =>
+      resultado;
+}
 
 void main() {
   final List<Profesional> profesionalesPrueba = [
@@ -71,19 +82,21 @@ void main() {
       await probador.pumpWidget(crearPantallaDePrueba());
       await probador.pumpAndSettle();
 
-      // Cabecera e identidad
+      // Cabecera e identidad (icono decorativo sin aspecto de boton circular)
       expect(find.text('PsicoBloom'), findsOneWidget);
       expect(find.text('Buscar profesional'), findsOneWidget);
       expect(find.text('Encuentra el apoyo que necesitas'), findsOneWidget);
+      expect(find.byKey(const Key('iconoEncabezadoBuscar')), findsOneWidget);
 
       // Campo de busqueda
       expect(find.byType(TextField), findsOneWidget);
       expect(find.text('Nombre, especialidad o palabra clave'), findsOneWidget);
 
-      // Los 3 filtros
+      // Los 4 filtros
       expect(find.text('Especialidad'), findsOneWidget);
       expect(find.text('Disponibilidad'), findsOneWidget);
       expect(find.text('Modalidad'), findsOneWidget);
+      expect(find.text('Cercanía'), findsOneWidget);
 
       // Contador de resultados
       expect(find.text('3 profesionales encontrados'), findsOneWidget);
@@ -250,6 +263,54 @@ void main() {
       expect(find.text('Profesionales en Riobamba'), findsOneWidget);
       expect(find.byKey(const Key('areaPreliminarMapa')), findsOneWidget);
       expect(find.text('Profesionales disponibles'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Filtro de cercania muestra opciones y maneja permiso GPS denegado sin romper busqueda',
+    (WidgetTester probador) async {
+      probador.view.physicalSize = const Size(1080, 2400);
+      probador.view.devicePixelRatio = 2.0;
+      addTearDown(probador.view.resetPhysicalSize);
+      addTearDown(probador.view.resetDevicePixelRatio);
+
+      final repositorio = RepositorioProfesionalesSimulado(
+        fuenteDatos: profesionalesPrueba,
+      );
+      await probador.pumpWidget(
+        MaterialApp(
+          theme: TemaPsicobloom.obtenerTema(),
+          home: PantallaBuscarProfesionales(
+            repositorio: repositorio,
+            servicioUbicacion: const _ServicioUbicacionPruebaBuscar(
+              ResultadoUbicacionDispositivo.fallo(
+                EstadoUbicacionDispositivo.permisoRechazado,
+                'Permiso rechazado',
+              ),
+            ),
+          ),
+        ),
+      );
+      await probador.pumpAndSettle();
+
+      await probador.tap(find.text('Cercanía'));
+      await probador.pumpAndSettle();
+
+      expect(find.text('Filtrar por Cercanía'), findsOneWidget);
+      expect(find.text('Más cercanos'), findsOneWidget);
+      expect(find.text('Menor tiempo de ruta'), findsOneWidget);
+      expect(find.text('Menor distancia'), findsOneWidget);
+
+      await probador.tap(
+        find.descendant(
+          of: find.byKey(const Key('listaOpcionesFiltro')),
+          matching: find.text('Más cercanos'),
+        ),
+      );
+      await probador.pumpAndSettle();
+
+      expect(find.byKey(const Key('avisoCercaniaBusqueda')), findsOneWidget);
+      expect(find.text('3 profesionales encontrados'), findsOneWidget);
     },
   );
 }

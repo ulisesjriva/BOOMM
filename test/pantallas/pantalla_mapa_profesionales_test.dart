@@ -98,14 +98,10 @@ void main() {
       );
       await probador.pumpAndSettle();
 
-      // A. Encabezado
+      // A. Encabezado (subtitulo corto e icono limpio sin contenedor circular)
       expect(find.text('Profesionales en Riobamba'), findsOneWidget);
-      expect(
-        find.text(
-          'Consulta los profesionales disponibles y la ubicación de sus consultorios.',
-        ),
-        findsOneWidget,
-      );
+      expect(find.text('Encuentra atención cerca de ti.'), findsOneWidget);
+      expect(find.byKey(const Key('iconoEncabezadoMapa')), findsOneWidget);
 
       // B. Area del mapa con marcadores con foto/iniciales, tarjetas compactas y ampliacion
       expect(find.byKey(const Key('areaPreliminarMapa')), findsOneWidget);

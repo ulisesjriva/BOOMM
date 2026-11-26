@@ -9,6 +9,8 @@ import 'package:boom/modulos/paciente/componentes/barra_navegacion_paciente.dart
 import 'package:boom/modulos/paciente/componentes/tarjeta_profesional.dart';
 import 'package:boom/modelos/filtro_profesional.dart';
 import 'package:boom/modulos/paciente/controladores/gestor_favoritos.dart';
+import 'package:boom/modulos/paciente/servicios/servicio_rutas_consultorio.dart';
+import 'package:boom/modulos/profesional/servicios/servicio_ubicacion_consultorio.dart';
 import 'package:boom/repositorios/repositorio_profesionales.dart';
 import 'package:boom/repositorios/repositorio_profesionales_simulado.dart';
 import 'package:boom/repositorios/repositorio_profesionales_supabase.dart';
@@ -22,11 +24,18 @@ import '../controladores/controlador_buscar_profesionales.dart';
 
 /// Pantalla 6: Buscar profesionales.
 /// Directorio interactivo de atencion psicologica con busqueda textual,
-/// filtros por especialidad, disponibilidad y modalidad, y ordenamiento.
+/// filtros por especialidad, disponibilidad, modalidad y cercania, y ordenamiento.
 class PantallaBuscarProfesionales extends StatefulWidget {
   final RepositorioProfesionales? repositorio;
+  final ServicioUbicacionConsultorio servicioUbicacion;
+  final ServicioRutasConsultorio servicioRutas;
 
-  const PantallaBuscarProfesionales({super.key, this.repositorio});
+  const PantallaBuscarProfesionales({
+    super.key,
+    this.repositorio,
+    this.servicioUbicacion = const ServicioUbicacionConsultorio(),
+    this.servicioRutas = const ServicioRutasConsultorio(),
+  });
 
   @override
   State<PantallaBuscarProfesionales> createState() =>
@@ -47,6 +56,8 @@ class _PantallaBuscarProfesionalesState
           (ConfiguracionSupabase.estaConfigurado
               ? RepositorioProfesionalesSupabase()
               : RepositorioProfesionalesSimulado()),
+      servicioUbicacion: widget.servicioUbicacion,
+      servicioRutas: widget.servicioRutas,
     );
     _controlador.addListener(_actualizarVista);
     unawaited(_controlador.inicializar());
@@ -88,6 +99,10 @@ class _PantallaBuscarProfesionalesState
 
   void _cambiarDisponibilidad(String nuevaDisponibilidad) {
     unawaited(_controlador.cambiarDisponibilidad(nuevaDisponibilidad));
+  }
+
+  void _cambiarCercania(String nuevaCercania) {
+    unawaited(_controlador.cambiarCercania(nuevaCercania));
   }
 
   void _cambiarOrdenamiento(CriterioOrdenamiento nuevoOrden) {
@@ -220,6 +235,10 @@ class _PantallaBuscarProfesionalesState
                     _construirCampoBusqueda(),
                     const SizedBox(height: 16),
                     _construirFilaFiltros(),
+                    if (_controlador.mensajeCercania != null) ...[
+                      const SizedBox(height: 12),
+                      _construirAvisoCercania(_controlador.mensajeCercania!),
+                    ],
                     const SizedBox(height: 20),
                     _construirBarraResultadosYOrden(),
                     const SizedBox(height: 12),
@@ -362,19 +381,12 @@ class _PantallaBuscarProfesionalesState
               ],
             ),
           ),
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: TemaPsicobloom.colorLavanda.withValues(alpha: 0.6),
-              shape: BoxShape.circle,
-              border: Border.all(color: TemaPsicobloom.colorBorde, width: 1.0),
-            ),
-            child: const Icon(
-              Icons.search_rounded,
-              color: TemaPsicobloom.colorPrincipal,
-              size: 30,
-            ),
+          const SizedBox(width: 12),
+          Icon(
+            Icons.person_search_outlined,
+            key: const Key('iconoEncabezadoBuscar'),
+            color: TemaPsicobloom.colorPrincipal.withValues(alpha: 0.72),
+            size: 28,
           ),
         ],
       ),
@@ -434,47 +446,115 @@ class _PantallaBuscarProfesionalesState
     );
   }
 
-  /// Fila de los tres filtros rapidos tipo tarjeta interactiva.
+  /// Zona de filtros rapidos (Especialidad, Disponibilidad, Modalidad y Cercania).
   Widget _construirFilaFiltros() {
+    final filtroEspecialidad = _construirBotonFiltro(
+      etiqueta: 'Especialidad',
+      valorActual: _controlador.filtro.especialidad,
+      icono: Icons.health_and_safety_outlined,
+      colorIcono: TemaPsicobloom.colorPrincipal,
+      opciones: _controlador.especialidades,
+      alSeleccionar: _cambiarEspecialidad,
+    );
+    final filtroDisponibilidad = _construirBotonFiltro(
+      etiqueta: 'Disponibilidad',
+      valorActual: _controlador.filtro.disponibilidad,
+      icono: Icons.calendar_today_outlined,
+      colorIcono: TemaPsicobloom.colorSecundario,
+      opciones: _controlador.disponibilidades,
+      alSeleccionar: _cambiarDisponibilidad,
+    );
+    final filtroModalidad = _construirBotonFiltro(
+      etiqueta: 'Modalidad',
+      valorActual: _controlador.filtro.modalidad,
+      icono: Icons.people_outline_rounded,
+      colorIcono: TemaPsicobloom.colorInformacion,
+      opciones: _controlador.modalidades,
+      alSeleccionar: _cambiarModalidad,
+    );
+    final filtroCercania = _construirBotonFiltro(
+      etiqueta: 'Cercanía',
+      valorActual: _controlador.filtro.cercania,
+      icono: Icons.near_me_outlined,
+      colorIcono: TemaPsicobloom.colorPrincipalOscuro,
+      opciones: _controlador.opcionesCercania,
+      alSeleccionar: _cambiarCercania,
+    );
+
     return LayoutBuilder(
       builder: (context, restricciones) {
-        return Row(
+        if (restricciones.maxWidth >= 560) {
+          return Row(
+            children: [
+              Expanded(child: filtroEspecialidad),
+              const SizedBox(width: 8),
+              Expanded(child: filtroDisponibilidad),
+              const SizedBox(width: 8),
+              Expanded(child: filtroModalidad),
+              const SizedBox(width: 8),
+              Expanded(child: filtroCercania),
+            ],
+          );
+        }
+
+        return Column(
           children: [
-            Expanded(
-              child: _construirBotonFiltro(
-                etiqueta: 'Especialidad',
-                valorActual: _controlador.filtro.especialidad,
-                icono: Icons.health_and_safety_outlined,
-                colorIcono: TemaPsicobloom.colorPrincipal,
-                opciones: _controlador.especialidades,
-                alSeleccionar: _cambiarEspecialidad,
-              ),
+            Row(
+              children: [
+                Expanded(child: filtroEspecialidad),
+                const SizedBox(width: 8),
+                Expanded(child: filtroDisponibilidad),
+              ],
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _construirBotonFiltro(
-                etiqueta: 'Disponibilidad',
-                valorActual: _controlador.filtro.disponibilidad,
-                icono: Icons.calendar_today_outlined,
-                colorIcono: TemaPsicobloom.colorSecundario,
-                opciones: _controlador.disponibilidades,
-                alSeleccionar: _cambiarDisponibilidad,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _construirBotonFiltro(
-                etiqueta: 'Modalidad',
-                valorActual: _controlador.filtro.modalidad,
-                icono: Icons.people_outline_rounded,
-                colorIcono: TemaPsicobloom.colorInformacion,
-                opciones: _controlador.modalidades,
-                alSeleccionar: _cambiarModalidad,
-              ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(child: filtroModalidad),
+                const SizedBox(width: 8),
+                Expanded(child: filtroCercania),
+              ],
             ),
           ],
         );
       },
+    );
+  }
+
+  Widget _construirAvisoCercania(String mensaje) {
+    return Container(
+      key: const Key('avisoCercaniaBusqueda'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: TemaPsicobloom.colorFondoInformacion,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: TemaPsicobloom.colorInformacion.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: Icon(
+              Icons.location_off_outlined,
+              size: 18,
+              color: TemaPsicobloom.colorInformacion,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              mensaje,
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: TemaPsicobloom.colorTexto,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -486,7 +566,9 @@ class _PantallaBuscarProfesionalesState
     required List<String> opciones,
     required ValueChanged<String> alSeleccionar,
   }) {
-    final bool estaActivo = valorActual != 'Todas';
+    final bool estaActivo =
+        valorActual != 'Todas' &&
+        valorActual != FiltroProfesional.opcionCercaniaTodos;
 
     return Material(
       color: estaActivo
@@ -795,6 +877,8 @@ class _PantallaBuscarProfesionalesState
               child: TarjetaProfesional(
                 profesional: profesional,
                 esFavorito: esFavorito,
+                textoUbicacionPersonalizado: _controlador
+                    .obtenerResumenCercania(profesional.id),
                 alAlternarFavorito: () => _alternarFavorito(profesional.id),
                 alVerPerfil: () {
                   Navigator.push(

@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:boom/configuracion/configuracion_supabase.dart';
@@ -12,10 +15,139 @@ class ErrorPerfilPaciente implements Exception {
   String toString() => mensaje;
 }
 
-/// Servicio encargado de consultar y actualizar el perfil basico del paciente autenticado.
+/// Fotografia seleccionada localmente en el dispositivo del paciente para vista previa.
+/// Aun no implica almacenamiento permanente en Supabase ni Cloudinary.
+class ArchivoFotoPacienteSeleccionada {
+  final Uint8List bytes;
+  final String extensionArchivo;
+  final String tipoMime;
+  final String? nombreArchivo;
+
+  const ArchivoFotoPacienteSeleccionada({
+    required this.bytes,
+    required this.extensionArchivo,
+    required this.tipoMime,
+    this.nombreArchivo,
+  });
+
+  int get tamanoBytes => bytes.lengthInBytes;
+}
+
+/// Resultado crudo de un selector de imagenes (permite inyectar dobles en pruebas).
+class ImagenCrudaPaciente {
+  final Uint8List bytes;
+  final String? nombreArchivo;
+
+  const ImagenCrudaPaciente({required this.bytes, this.nombreArchivo});
+}
+
+typedef ProveedorSeleccionFotoPaciente = Future<ImagenCrudaPaciente?> Function(
+  ImageSource origen,
+);
+
+/// Servicio encargado de consultar y actualizar el perfil basico del paciente autenticado,
+/// asi como seleccionar y validar localmente fotografias desde la galeria.
 /// Reutiliza las funciones RPC seguras `perfil_del_usuario_actual` y `actualizar_nombre_apellido`.
 class ServicioPerfilPaciente {
-  const ServicioPerfilPaciente();
+  final ProveedorSeleccionFotoPaciente? proveedorSeleccionFoto;
+
+  const ServicioPerfilPaciente({this.proveedorSeleccionFoto});
+
+  static const int limiteBytesFotografia = 5 * 1024 * 1024; // 5 MB
+
+  /// Abre la galeria mediante `image_picker` y valida localmente que el archivo
+  /// sea JPG o PNG (por firma binaria real) y no supere 5 MB.
+  /// Devuelve null si el usuario cancela la seleccion.
+  Future<ArchivoFotoPacienteSeleccionada?> seleccionarFotografiaGaleria({
+    ImageSource origen = ImageSource.gallery,
+  }) async {
+    try {
+      final ImagenCrudaPaciente? cruda;
+      if (proveedorSeleccionFoto != null) {
+        cruda = await proveedorSeleccionFoto!(origen);
+      } else {
+        final selector = ImagePicker();
+        final archivo = await selector.pickImage(
+          source: origen,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 85,
+        );
+        if (archivo == null) {
+          return null;
+        }
+        cruda = ImagenCrudaPaciente(
+          bytes: await archivo.readAsBytes(),
+          nombreArchivo: archivo.name,
+        );
+      }
+
+      if (cruda == null) {
+        return null;
+      }
+
+      return validarFotografiaLocal(
+        cruda.bytes,
+        nombreArchivo: cruda.nombreArchivo,
+      );
+    } on ErrorPerfilPaciente {
+      rethrow;
+    } catch (_) {
+      throw const ErrorPerfilPaciente(
+        'No se pudo acceder a la galería del dispositivo. Verifica los permisos e inténtalo nuevamente.',
+      );
+    }
+  }
+
+  /// Valida localmente tamano (<= 5 MB) y firma binaria real (JPG o PNG).
+  static ArchivoFotoPacienteSeleccionada validarFotografiaLocal(
+    Uint8List bytes, {
+    String? nombreArchivo,
+  }) {
+    if (bytes.isEmpty) {
+      throw const ErrorPerfilPaciente('El archivo seleccionado está vacío.');
+    }
+    if (bytes.lengthInBytes > limiteBytesFotografia) {
+      throw const ErrorPerfilPaciente(
+        'La fotografía supera el límite de 5 MB. Elige una imagen más ligera.',
+      );
+    }
+
+    // Firma JPG: FF D8 FF
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xFF &&
+        bytes[1] == 0xD8 &&
+        bytes[2] == 0xFF) {
+      return ArchivoFotoPacienteSeleccionada(
+        bytes: bytes,
+        extensionArchivo: 'jpg',
+        tipoMime: 'image/jpeg',
+        nombreArchivo: nombreArchivo,
+      );
+    }
+
+    // Firma PNG: 89 50 4E 47 0D 0A 1A 0A
+    if (bytes.length >= 8 &&
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4E &&
+        bytes[3] == 0x47 &&
+        bytes[4] == 0x0D &&
+        bytes[5] == 0x0A &&
+        bytes[6] == 0x1A &&
+        bytes[7] == 0x0A) {
+      return ArchivoFotoPacienteSeleccionada(
+        bytes: bytes,
+        extensionArchivo: 'png',
+        tipoMime: 'image/png',
+        nombreArchivo: nombreArchivo,
+      );
+    }
+
+    throw const ErrorPerfilPaciente(
+      'Solo se permiten fotografías en formato JPG o PNG.',
+    );
+  }
 
   SupabaseClient get _cliente {
     if (!ConfiguracionSupabase.estaConfigurado) {
