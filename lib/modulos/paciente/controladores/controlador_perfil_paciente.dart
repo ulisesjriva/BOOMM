@@ -5,8 +5,32 @@ import 'package:boom/modelos/perfil_usuario.dart';
 import 'package:boom/modulos/autenticacion/servicios/servicio_sesion.dart';
 import 'package:boom/modulos/paciente/servicios/servicio_perfil_paciente.dart';
 
-/// Coordina la carga, edicion, vista previa local de fotografia, guardado en Supabase
-/// y cierre de sesion del perfil del paciente.
+/// Resultado tipado de una operacion sobre la fotografia de perfil del paciente.
+enum EstadoOperacionFotoPaciente {
+  actualizada,
+  eliminada,
+  cancelada,
+  errorSeleccion,
+  errorServidor,
+}
+
+class ResultadoOperacionFotoPaciente {
+  final EstadoOperacionFotoPaciente estado;
+  final String? mensaje;
+
+  const ResultadoOperacionFotoPaciente({required this.estado, this.mensaje});
+
+  bool get fueExitosa =>
+      estado == EstadoOperacionFotoPaciente.actualizada ||
+      estado == EstadoOperacionFotoPaciente.eliminada;
+
+  bool get esError =>
+      estado == EstadoOperacionFotoPaciente.errorSeleccion ||
+      estado == EstadoOperacionFotoPaciente.errorServidor;
+}
+
+/// Coordina la carga, edicion de datos basicos, gestion automatica de fotografia
+/// (Cloudinary + Supabase mediante Edge Function segura) y cierre de sesion.
 class ControladorPerfilPaciente extends ChangeNotifier {
   ControladorPerfilPaciente({
     this.servicio = const ServicioPerfilPaciente(),
@@ -18,31 +42,34 @@ class ControladorPerfilPaciente extends ChangeNotifier {
   final ServicioSesion servicioSesion;
 
   PerfilUsuario? _perfil;
-  ArchivoFotoPacienteSeleccionada? _fotoVistaPrevia;
+  ArchivoFotoPacienteSeleccionada? _fotoTemporal;
   bool _estaCargando = false;
   bool _estaGuardando = false;
   bool _estaSeleccionandoFoto = false;
+  bool _estaProcesandoFoto = false;
   bool _estaCerrandoSesion = false;
   bool _cerrado = false;
   String? _mensajeError;
   String? _mensajeExito;
-  String? _mensajeErrorFoto;
 
   PerfilUsuario? get perfil => _perfil;
-  ArchivoFotoPacienteSeleccionada? get fotoVistaPrevia => _fotoVistaPrevia;
-  bool get tieneFotoVistaPrevia => _fotoVistaPrevia != null;
+  ArchivoFotoPacienteSeleccionada? get fotoTemporal => _fotoTemporal;
+  bool get tieneFotoPersonalizada =>
+      _perfil?.tieneFotoPersonalizada == true &&
+      (_perfil?.fotoUrl?.trim().isNotEmpty ?? false);
   bool get estaCargando => _estaCargando;
   bool get estaGuardando => _estaGuardando;
   bool get estaSeleccionandoFoto => _estaSeleccionandoFoto;
+  bool get estaProcesandoFoto => _estaProcesandoFoto;
   bool get estaCerrandoSesion => _estaCerrandoSesion;
   bool get ocupado =>
       _estaCargando ||
       _estaGuardando ||
       _estaSeleccionandoFoto ||
+      _estaProcesandoFoto ||
       _estaCerrandoSesion;
   String? get mensajeError => _mensajeError;
   String? get mensajeExito => _mensajeExito;
-  String? get mensajeErrorFoto => _mensajeErrorFoto;
 
   static String? validarNombreOApellido(String? valor, String campo) {
     final limpio = valor?.trim() ?? '';
@@ -66,6 +93,7 @@ class ControladorPerfilPaciente extends ChangeNotifier {
       final perfilServidor = await servicio.obtenerPerfilPropio();
       if (_cerrado) return null;
       _perfil = perfilServidor;
+      ServicioSesion.notificarPerfilPacienteActualizado(perfilServidor);
       return perfilServidor;
     } catch (error) {
       if (!_cerrado) {
@@ -114,6 +142,7 @@ class ControladorPerfilPaciente extends ChangeNotifier {
       );
       if (_cerrado) return false;
       _perfil = perfilActualizado;
+      ServicioSesion.notificarPerfilPacienteActualizado(perfilActualizado);
       _mensajeExito = 'Tu perfil se actualizó correctamente en PsicoBloom.';
       return true;
     } catch (error) {
@@ -162,45 +191,124 @@ class ControladorPerfilPaciente extends ChangeNotifier {
     }
   }
 
-  /// Selecciona una fotografia desde la galeria para mostrarla unicamente como
-  /// vista previa local en memoria, sin modificar la foto actual ni subirla aun.
-  Future<bool> seleccionarFotografiaVistaPrevia({
-    ImageSource origen = ImageSource.gallery,
+  /// Selecciona o toma una fotografia valida, la muestra temporalmente en el avatar
+  /// e inicia automaticamente la subida a Cloudinary y persistencia en Supabase.
+  /// Si el usuario cancela el selector no hace nada. Si falla la subida, restaura
+  /// la fotografia anterior e informa "No se pudo actualizar la foto".
+  Future<ResultadoOperacionFotoPaciente> cambiarFotografia({
+    required ImageSource origen,
   }) async {
-    if (_cerrado || ocupado) return false;
+    if (_cerrado || ocupado) {
+      return const ResultadoOperacionFotoPaciente(
+        estado: EstadoOperacionFotoPaciente.cancelada,
+      );
+    }
+
     _estaSeleccionandoFoto = true;
-    _mensajeErrorFoto = null;
+    notifyListeners();
+
+    ArchivoFotoPacienteSeleccionada? seleccionada;
+    try {
+      seleccionada = await servicio.seleccionarFotografia(origen: origen);
+    } catch (error) {
+      if (!_cerrado) {
+        _estaSeleccionandoFoto = false;
+        notifyListeners();
+      }
+      return ResultadoOperacionFotoPaciente(
+        estado: EstadoOperacionFotoPaciente.errorSeleccion,
+        mensaje: ServicioPerfilPaciente.explicarError(error),
+      );
+    }
+
+    if (_cerrado) {
+      return const ResultadoOperacionFotoPaciente(
+        estado: EstadoOperacionFotoPaciente.cancelada,
+      );
+    }
+
+    _estaSeleccionandoFoto = false;
+    if (seleccionada == null) {
+      notifyListeners();
+      return const ResultadoOperacionFotoPaciente(
+        estado: EstadoOperacionFotoPaciente.cancelada,
+      );
+    }
+
+    // Muestra la nueva fotografia temporalmente mientras se persiste en servidor.
+    _fotoTemporal = seleccionada;
+    _estaProcesandoFoto = true;
     notifyListeners();
 
     try {
-      final seleccionada = await servicio.seleccionarFotografiaGaleria(
-        origen: origen,
+      final perfilActualizado = await servicio.subirYGuardarFotografia(
+        seleccionada,
       );
-      if (_cerrado) return false;
-      if (seleccionada == null) {
-        return false;
+      if (_cerrado) {
+        return const ResultadoOperacionFotoPaciente(
+          estado: EstadoOperacionFotoPaciente.cancelada,
+        );
       }
-      _fotoVistaPrevia = seleccionada;
-      return true;
-    } catch (error) {
+      _perfil = perfilActualizado;
+      _fotoTemporal = null;
+      ServicioSesion.notificarPerfilPacienteActualizado(perfilActualizado);
+      return const ResultadoOperacionFotoPaciente(
+        estado: EstadoOperacionFotoPaciente.actualizada,
+        mensaje: 'Foto actualizada',
+      );
+    } catch (_) {
       if (!_cerrado) {
-        _mensajeErrorFoto = ServicioPerfilPaciente.explicarError(error);
+        // Recupera la fotografia anterior descartando la vista previa temporal.
+        _fotoTemporal = null;
       }
-      return false;
+      return const ResultadoOperacionFotoPaciente(
+        estado: EstadoOperacionFotoPaciente.errorServidor,
+        mensaje: 'No se pudo actualizar la foto',
+      );
     } finally {
       if (!_cerrado) {
-        _estaSeleccionandoFoto = false;
+        _estaProcesandoFoto = false;
         notifyListeners();
       }
     }
   }
 
-  /// Descarta la fotografia seleccionada localmente y restaura la vista actual.
-  void cancelarSeleccionFotografia() {
-    if (_cerrado || ocupado) return;
-    _fotoVistaPrevia = null;
-    _mensajeErrorFoto = null;
+  /// Elimina la fotografia personalizada guardada en PsicoBloom (Cloudinary + Supabase),
+  /// conservando intacta cualquier fotografia externa como Google OAuth.
+  Future<ResultadoOperacionFotoPaciente> eliminarFotografia() async {
+    if (_cerrado || ocupado || !tieneFotoPersonalizada) {
+      return const ResultadoOperacionFotoPaciente(
+        estado: EstadoOperacionFotoPaciente.cancelada,
+      );
+    }
+
+    _estaProcesandoFoto = true;
     notifyListeners();
+
+    try {
+      final perfilActualizado = await servicio.eliminarFotografia();
+      if (_cerrado) {
+        return const ResultadoOperacionFotoPaciente(
+          estado: EstadoOperacionFotoPaciente.cancelada,
+        );
+      }
+      _perfil = perfilActualizado.copiarCon(limpiarFotoUrl: true);
+      ServicioSesion.notificarPerfilPacienteActualizado(_perfil!);
+      return const ResultadoOperacionFotoPaciente(
+        estado: EstadoOperacionFotoPaciente.eliminada,
+        mensaje: 'Foto eliminada',
+      );
+    } catch (_) {
+      return const ResultadoOperacionFotoPaciente(
+        estado: EstadoOperacionFotoPaciente.errorServidor,
+        mensaje: 'No se pudo eliminar la foto',
+      );
+    } finally {
+      if (!_cerrado) {
+        _estaProcesandoFoto = false;
+        notifyListeners();
+      }
+    }
   }
 
   Future<void> cerrarSesion() async {
@@ -208,14 +316,13 @@ class ControladorPerfilPaciente extends ChangeNotifier {
     _estaCerrandoSesion = true;
     _mensajeError = null;
     _mensajeExito = null;
-    _mensajeErrorFoto = null;
     notifyListeners();
 
     try {
       await servicioSesion.cerrarSesion();
       if (!_cerrado) {
         _perfil = null;
-        _fotoVistaPrevia = null;
+        _fotoTemporal = null;
       }
     } finally {
       if (!_cerrado) {
@@ -229,7 +336,6 @@ class ControladorPerfilPaciente extends ChangeNotifier {
     if (_cerrado) return;
     _mensajeError = null;
     _mensajeExito = null;
-    _mensajeErrorFoto = null;
     notifyListeners();
   }
 

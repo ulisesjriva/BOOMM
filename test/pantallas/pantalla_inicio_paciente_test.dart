@@ -256,6 +256,36 @@ void main() {
         ),
         findsOneWidget,
       );
+
+      // Si Perfil actualiza la foto personalizada, Inicio se sincroniza automaticamente.
+      const urlPersonalizada =
+          'https://res.cloudinary.com/demo/image/upload/psicobloom/pacientes/pac-2_nueva.jpg';
+      ServicioSesion.notificarPerfilPacienteActualizado(
+        const PerfilUsuario(
+          id: 'pac-2',
+          nombre: 'Ana',
+          apellido: 'Gómez',
+          rol: 'paciente',
+          aprobacion: 'no_aplica',
+          cuentaActiva: true,
+          fotoUrl: urlPersonalizada,
+          tieneFotoPersonalizada: true,
+        ),
+      );
+      await probador.pump();
+
+      final avatarInicio = probador.widget<Image>(
+        find.descendant(
+          of: find.byKey(const Key('avatarPacienteInicio')),
+          matching: find.byType(Image),
+        ),
+      );
+      expect(
+        (avatarInicio.image as NetworkImage).url,
+        equals(urlPersonalizada),
+      );
+
+      ServicioSesion.limpiarPerfilPacienteSincronizado();
     },
   );
 }

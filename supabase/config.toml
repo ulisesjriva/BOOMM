@@ -10,3 +10,6 @@ verify_jwt = false
 
 [functions.geoapify]
 verify_jwt = true
+
+[functions.gestionar-foto-paciente]
+verify_jwt = true

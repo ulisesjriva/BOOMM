@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:boom/modelos/perfil_usuario.dart';
 import 'package:boom/modulos/autenticacion/servicios/servicio_sesion.dart';
@@ -15,7 +16,7 @@ import 'package:boom/modulos/paciente/vistas/pantalla_mis_citas_paciente.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 
-/// Pantalla de consulta y edicion del perfil basico del paciente autenticado.
+/// Pantalla de consulta y edicion del perfil basico y fotografia del paciente autenticado.
 class PantallaPerfilPaciente extends StatefulWidget {
   final PerfilUsuario? perfilInicial;
   final ServicioPerfilPaciente servicio;
@@ -107,6 +108,222 @@ class _PantallaPerfilPacienteState extends State<PantallaPerfilPaciente> {
       );
     } else if (_controlador.mensajeError != null) {
       _mostrarMensaje(_controlador.mensajeError!, esError: true);
+    }
+  }
+
+  Future<void> _abrirMenuFotografia() async {
+    if (_controlador.ocupado) return;
+    FocusScope.of(context).unfocus();
+
+    final mostrarEliminar = _controlador.tieneFotoPersonalizada;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: TemaPsicobloom.colorSuperficie,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (contextoHoja) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: TemaPsicobloom.colorBorde,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    'Cambiar foto',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: TemaPsicobloom.colorTexto,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  key: const Key('opcionFotoGaleria'),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  leading: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: const BoxDecoration(
+                      color: TemaPsicobloom.colorLavanda,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.photo_library_outlined,
+                      color: TemaPsicobloom.colorPrincipal,
+                      size: 20,
+                    ),
+                  ),
+                  title: const Text(
+                    'Elegir de la galería',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: TemaPsicobloom.colorTexto,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(contextoHoja);
+                    unawaited(_cambiarFotoDesde(ImageSource.gallery));
+                  },
+                ),
+                ListTile(
+                  key: const Key('opcionFotoCamara'),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  leading: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: const BoxDecoration(
+                      color: TemaPsicobloom.colorLavanda,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.photo_camera_outlined,
+                      color: TemaPsicobloom.colorPrincipal,
+                      size: 20,
+                    ),
+                  ),
+                  title: const Text(
+                    'Tomar foto',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: TemaPsicobloom.colorTexto,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(contextoHoja);
+                    unawaited(_cambiarFotoDesde(ImageSource.camera));
+                  },
+                ),
+                if (mostrarEliminar) ...[
+                  const Divider(height: 12, color: TemaPsicobloom.colorBorde),
+                  ListTile(
+                    key: const Key('opcionFotoEliminar'),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    leading: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: const BoxDecoration(
+                        color: TemaPsicobloom.colorFondoError,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.delete_outline_rounded,
+                        color: TemaPsicobloom.colorError,
+                        size: 20,
+                      ),
+                    ),
+                    title: const Text(
+                      'Eliminar foto',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: TemaPsicobloom.colorError,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(contextoHoja);
+                      unawaited(_confirmarEliminacionFoto());
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _cambiarFotoDesde(ImageSource origen) async {
+    final resultado = await _controlador.cambiarFotografia(origen: origen);
+    if (!mounted) return;
+
+    if (resultado.estado == EstadoOperacionFotoPaciente.actualizada) {
+      final perfilActualizado = _controlador.perfil;
+      if (perfilActualizado != null) {
+        widget.alActualizarPerfil?.call(perfilActualizado);
+      }
+      _mostrarMensaje(resultado.mensaje ?? 'Foto actualizada', esError: false);
+    } else if (resultado.esError) {
+      _mostrarMensaje(
+        resultado.mensaje ?? 'No se pudo actualizar la foto',
+        esError: true,
+      );
+    }
+  }
+
+  Future<void> _confirmarEliminacionFoto() async {
+    if (_controlador.ocupado || !_controlador.tieneFotoPersonalizada) return;
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (contextoDialogo) => AlertDialog(
+        backgroundColor: TemaPsicobloom.colorSuperficie,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text('¿Eliminar tu foto de perfil?'),
+        content: const Text(
+          'Se quitará tu fotografía guardada y se mostrará tu foto de Google o tus iniciales.',
+        ),
+        actions: [
+          TextButton(
+            key: const Key('botonCancelarEliminarFoto'),
+            onPressed: () => Navigator.pop(contextoDialogo, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            key: const Key('botonConfirmarEliminarFoto'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: TemaPsicobloom.colorError,
+              minimumSize: const Size(110, 42),
+            ),
+            onPressed: () => Navigator.pop(contextoDialogo, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true || !mounted) return;
+
+    final resultado = await _controlador.eliminarFotografia();
+    if (!mounted) return;
+
+    if (resultado.estado == EstadoOperacionFotoPaciente.eliminada) {
+      final perfilActualizado = _controlador.perfil;
+      if (perfilActualizado != null) {
+        widget.alActualizarPerfil?.call(perfilActualizado);
+      }
+      _mostrarMensaje(resultado.mensaje ?? 'Foto eliminada', esError: false);
+    } else if (resultado.esError) {
+      _mostrarMensaje(
+        resultado.mensaje ?? 'No se pudo eliminar la foto',
+        esError: true,
+      );
     }
   }
 
@@ -275,19 +492,7 @@ class _PantallaPerfilPacienteState extends State<PantallaPerfilPaciente> {
     );
   }
 
-  Future<void> _seleccionarFotoGaleria() async {
-    FocusScope.of(context).unfocus();
-    final seleccionada = await _controlador.seleccionarFotografiaVistaPrevia();
-    if (!mounted) return;
-    if (!seleccionada && _controlador.mensajeErrorFoto != null) {
-      _mostrarMensaje(_controlador.mensajeErrorFoto!, esError: true);
-    }
-  }
-
-  void _cancelarVistaPreviaFoto() {
-    _controlador.cancelarSeleccionFotografia();
-  }
-
+  /// Prioriza la fotografia guardada del paciente y, si no existe, usa la de Google OAuth.
   String? _resolverFotoActual(PerfilUsuario? perfil) {
     final fotoPerfil = perfil?.fotoUrl?.trim();
     if (fotoPerfil != null && fotoPerfil.isNotEmpty) {
@@ -308,320 +513,112 @@ class _PantallaPerfilPacienteState extends State<PantallaPerfilPaciente> {
         ? perfil!.nombreCompleto
         : 'Paciente PsicoBloom';
     final fotoActual = _resolverFotoActual(perfil);
-    final vistaPrevia = _controlador.fotoVistaPrevia;
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       decoration: BoxDecoration(
         color: TemaPsicobloom.colorSuperficie,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: TemaPsicobloom.colorBorde),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            children: [
-              AvatarPaciente(
-                key: const Key('avatarPacientePerfil'),
-                nombreCompleto: nombre,
-                fotoUrl: fotoActual,
-                bytesVistaPrevia: vistaPrevia?.bytes,
-                diametro: 72,
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      nombre,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: TemaPsicobloom.colorTexto,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      correoMostrado,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: TemaPsicobloom.colorTextoSecundario,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
+          SizedBox(
+            width: 108,
+            height: 108,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                AvatarPaciente(
+                  key: const Key('avatarPacientePerfil'),
+                  nombreCompleto: nombre,
+                  fotoUrl: fotoActual,
+                  bytesVistaPrevia: _controlador.fotoTemporal?.bytes,
+                  diametro: 104,
+                  anchoBorde: 3,
+                  colorBorde: TemaPsicobloom.colorPrincipal.withValues(
+                    alpha: 0.22,
+                  ),
+                  estaCargando: _controlador.estaProcesandoFoto,
+                ),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Tooltip(
+                    message: 'Cambiar foto',
+                    child: Material(
+                      color: TemaPsicobloom.colorSuperficie,
+                      shape: CircleBorder(
+                        side: BorderSide(
+                          color: TemaPsicobloom.colorBorde.withValues(
+                            alpha: 0.9,
                           ),
-                          decoration: BoxDecoration(
-                            color: TemaPsicobloom.colorFondoExito,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Text(
-                            'Rol: Paciente • Cuenta activa',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              color: TemaPsicobloom.colorExito,
-                            ),
+                          width: 1.2,
+                        ),
+                      ),
+                      elevation: 3,
+                      shadowColor: TemaPsicobloom.colorPrincipal.withValues(
+                        alpha: 0.22,
+                      ),
+                      child: InkWell(
+                        key: const Key('botonCambiarFotoPaciente'),
+                        customBorder: const CircleBorder(),
+                        onTap: _controlador.ocupado
+                            ? null
+                            : _abrirMenuFotografia,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Icon(
+                            Icons.photo_camera_outlined,
+                            size: 19,
+                            color: _controlador.ocupado
+                                ? TemaPsicobloom.colorTextoSecundario
+                                : TemaPsicobloom.colorPrincipal,
                           ),
                         ),
-                        if (vistaPrevia != null)
-                          Container(
-                            key: const Key('insigniaVistaPreviaFoto'),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: TemaPsicobloom.colorFondoAdvertencia,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: TemaPsicobloom.colorAdvertencia
-                                    .withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: const Text(
-                              'Vista previa local (sin guardar)',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w600,
-                                color: TemaPsicobloom.colorAdvertencia,
-                              ),
-                            ),
-                          ),
-                      ],
+                      ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
-          const Divider(height: 1, color: TemaPsicobloom.colorBorde),
           const SizedBox(height: 14),
-          const Text(
-            'Fotografía de perfil',
-            style: TextStyle(
-              fontSize: 14.5,
+          Text(
+            nombre,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 19,
               fontWeight: FontWeight.bold,
               color: TemaPsicobloom.colorTexto,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            vistaPrevia != null
-                ? 'Estás viendo una vista previa local${vistaPrevia.nombreArchivo != null && vistaPrevia.nombreArchivo!.trim().isNotEmpty ? ' (${vistaPrevia.nombreArchivo!.trim()})' : ''}. Formatos admitidos: JPG o PNG (máximo 5 MB).'
-                : 'Selecciona una fotografía JPG o PNG (máximo 5 MB) desde tu galería para previsualizar cómo se verá en tu perfil.',
+            correoMostrado,
+            textAlign: TextAlign.center,
             style: const TextStyle(
-              fontSize: 12.5,
+              fontSize: 13.5,
               color: TemaPsicobloom.colorTextoSecundario,
-              height: 1.35,
             ),
-          ),
-          if (_controlador.mensajeErrorFoto != null) ...[
-            const SizedBox(height: 10),
-            Container(
-              key: const Key('errorFotografiaPaciente'),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: TemaPsicobloom.colorFondoError,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.error_outline_rounded,
-                    color: TemaPsicobloom.colorError,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _controlador.mensajeErrorFoto!,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        color: TemaPsicobloom.colorError,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: 12),
-          LayoutBuilder(
-            builder: (context, restricciones) {
-              final enFila = restricciones.maxWidth >= 420;
-              final botonSeleccionar = OutlinedButton.icon(
-                key: const Key('botonSeleccionarFotoPaciente'),
-                onPressed: _controlador.ocupado
-                    ? null
-                    : _seleccionarFotoGaleria,
-                icon: _controlador.estaSeleccionandoFoto
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: TemaPsicobloom.colorPrincipal,
-                        ),
-                      )
-                    : Icon(
-                        vistaPrevia != null
-                            ? Icons.swap_horiz_rounded
-                            : Icons.photo_library_outlined,
-                        size: 18,
-                      ),
-                label: Text(
-                  _controlador.estaSeleccionandoFoto
-                      ? 'Abriendo galería...'
-                      : vistaPrevia != null
-                      ? 'Elegir otra foto'
-                      : 'Seleccionar de la galería',
-                ),
-              );
-
-              final botonCancelar = vistaPrevia != null
-                  ? OutlinedButton.icon(
-                      key: const Key('botonCancelarFotoPaciente'),
-                      onPressed: _controlador.ocupado
-                          ? null
-                          : _cancelarVistaPreviaFoto,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: TemaPsicobloom.colorTextoSecundario,
-                      ),
-                      icon: const Icon(Icons.close_rounded, size: 18),
-                      label: const Text('Cancelar selección'),
-                    )
-                  : null;
-
-              if (botonCancelar == null) {
-                return SizedBox(
-                  width: double.infinity,
-                  child: botonSeleccionar,
-                );
-              }
-              if (enFila) {
-                return Row(
-                  children: [
-                    Expanded(child: botonSeleccionar),
-                    const SizedBox(width: 10),
-                    Expanded(child: botonCancelar),
-                  ],
-                );
-              }
-              return Column(
-                children: [
-                  SizedBox(width: double.infinity, child: botonSeleccionar),
-                  const SizedBox(height: 8),
-                  SizedBox(width: double.infinity, child: botonCancelar),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 10),
-          LayoutBuilder(
-            builder: (context, restricciones) {
-              final enFila = restricciones.maxWidth >= 420;
-              const botonGuardarDeshabilitado = ElevatedButton(
-                key: Key('botonGuardarFotoPaciente'),
-                onPressed: null,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.cloud_upload_outlined, size: 18),
-                    SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'Guardar fotografía',
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-              const botonEliminarDeshabilitado = OutlinedButton(
-                key: Key('botonEliminarFotoPaciente'),
-                onPressed: null,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.delete_outline_rounded, size: 18),
-                    SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'Eliminar fotografía',
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-
-              if (enFila) {
-                return const Row(
-                  children: [
-                    Expanded(child: botonGuardarDeshabilitado),
-                    SizedBox(width: 10),
-                    Expanded(child: botonEliminarDeshabilitado),
-                  ],
-                );
-              }
-              return const Column(
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: botonGuardarDeshabilitado,
-                  ),
-                  SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: botonEliminarDeshabilitado,
-                  ),
-                ],
-              );
-            },
           ),
           const SizedBox(height: 10),
           Container(
-            key: const Key('avisoAlmacenamientoFotoPendiente'),
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
-              color: TemaPsicobloom.colorFondoInformacion,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: TemaPsicobloom.colorInformacion.withValues(alpha: 0.25),
-              ),
+              color: TemaPsicobloom.colorFondoExito,
+              borderRadius: BorderRadius.circular(20),
             ),
-            child: const Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.info_outline_rounded,
-                  color: TemaPsicobloom.colorInformacion,
-                  size: 18,
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Guardar y eliminar fotografía requieren integrar el almacenamiento en Supabase y Cloudinary en una etapa posterior. Tu fotografía actual no se modifica.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: TemaPsicobloom.colorTexto,
-                      height: 1.35,
-                    ),
-                  ),
-                ),
-              ],
+            child: const Text(
+              'Rol: Paciente · Cuenta activa',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: TemaPsicobloom.colorExito,
+              ),
             ),
           ),
         ],
@@ -652,7 +649,7 @@ class _PantallaPerfilPacienteState extends State<PantallaPerfilPaciente> {
             ),
             const SizedBox(height: 4),
             const Text(
-              'Actualiza tu nombre y apellido. Los cambios se guardan directamente en Supabase.',
+              'Actualiza tu nombre y apellido',
               style: TextStyle(
                 fontSize: 13,
                 color: TemaPsicobloom.colorTextoSecundario,
@@ -708,7 +705,7 @@ class _PantallaPerfilPacienteState extends State<PantallaPerfilPaciente> {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Correo electrónico (gestionado por Supabase Auth)',
+              'Correo electrónico',
               style: TextStyle(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w600,

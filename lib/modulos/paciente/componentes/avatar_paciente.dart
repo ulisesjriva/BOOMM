@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 
 /// Avatar circular reutilizable para el paciente en las pantallas de Inicio y Perfil.
-/// Prioriza: 1) vista previa local en memoria (si se proporciona),
-/// 2) fotografia disponible (por ejemplo Google OAuth o perfil),
+/// Prioriza: 1) fotografia temporal en memoria (durante subida automatica),
+/// 2) fotografia disponible (personalizada de PsicoBloom o Google OAuth),
 /// 3) iniciales del paciente, 4) icono por defecto.
 class AvatarPaciente extends StatelessWidget {
   final String nombreCompleto;
@@ -15,6 +15,7 @@ class AvatarPaciente extends StatelessWidget {
   final double diametro;
   final Color? colorBorde;
   final double anchoBorde;
+  final bool estaCargando;
 
   const AvatarPaciente({
     super.key,
@@ -24,6 +25,7 @@ class AvatarPaciente extends StatelessWidget {
     this.diametro = 68,
     this.colorBorde,
     this.anchoBorde = 1.5,
+    this.estaCargando = false,
   });
 
   static String obtenerIniciales(String nombreCompleto) {
@@ -105,7 +107,28 @@ class AvatarPaciente extends StatelessWidget {
           width: anchoBorde,
         ),
       ),
-      child: ClipOval(child: contenido),
+      child: ClipOval(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            contenido,
+            if (estaCargando)
+              Container(
+                key: const Key('indicadorProgresoFotoPaciente'),
+                color: Colors.black.withValues(alpha: 0.38),
+                alignment: Alignment.center,
+                child: SizedBox(
+                  width: diametro * 0.24,
+                  height: diametro * 0.24,
+                  child: const CircularProgressIndicator(
+                    strokeWidth: 2.4,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

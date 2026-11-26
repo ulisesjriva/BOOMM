@@ -65,9 +65,48 @@ class _PantallaInicioPacienteState extends State<PantallaInicioPaciente> {
   void initState() {
     super.initState();
     _perfilActual = widget.perfilInicial;
+    final sincronizado = ServicioSesion.perfilPacienteSincronizado.value;
+    if (sincronizado != null &&
+        _perfilActual != null &&
+        sincronizado.id == _perfilActual!.id) {
+      _perfilActual = sincronizado;
+    }
+    ServicioSesion.perfilPacienteSincronizado.addListener(
+      _alCambiarPerfilSincronizado,
+    );
     if (_usaDatosReales) {
       _cargarProfesionalesReales();
     }
+  }
+
+  void _alCambiarPerfilSincronizado() {
+    if (!mounted) return;
+    final actualizado = ServicioSesion.perfilPacienteSincronizado.value;
+    if (actualizado == null) return;
+    if (_perfilActual != null && actualizado.id != _perfilActual!.id) {
+      return;
+    }
+    if (_perfilActual == null) return;
+    setState(() {
+      _perfilActual = actualizado;
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant PantallaInicioPaciente oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.perfilInicial != oldWidget.perfilInicial &&
+        widget.perfilInicial != null) {
+      _perfilActual = widget.perfilInicial;
+    }
+  }
+
+  @override
+  void dispose() {
+    ServicioSesion.perfilPacienteSincronizado.removeListener(
+      _alCambiarPerfilSincronizado,
+    );
+    super.dispose();
   }
 
   Future<void> _cargarProfesionalesReales() async {

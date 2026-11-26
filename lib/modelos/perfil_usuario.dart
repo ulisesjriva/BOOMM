@@ -1,5 +1,5 @@
-/// Perfil obtenido del servidor mediante `perfil_del_usuario_actual()`;
-/// el rol nunca se decide por el formulario.
+/// Perfil obtenido del servidor mediante `perfil_del_usuario_actual()`
+/// o `obtener_perfil_paciente_propio()`; el rol nunca se decide por el formulario.
 class PerfilUsuario {
   final String id;
   final String nombre;
@@ -9,6 +9,7 @@ class PerfilUsuario {
   final String aprobacion;
   final bool cuentaActiva;
   final String? fotoUrl;
+  final bool tieneFotoPersonalizada;
 
   const PerfilUsuario({
     required this.id,
@@ -19,6 +20,7 @@ class PerfilUsuario {
     required this.aprobacion,
     required this.cuentaActiva,
     this.fotoUrl,
+    this.tieneFotoPersonalizada = false,
   });
 
   String get nombreCompleto => '${nombre.trim()} ${apellido.trim()}'.trim();
@@ -31,6 +33,8 @@ class PerfilUsuario {
     String? aprobacion,
     bool? cuentaActiva,
     String? fotoUrl,
+    bool? tieneFotoPersonalizada,
+    bool limpiarFotoUrl = false,
   }) {
     return PerfilUsuario(
       id: id,
@@ -40,12 +44,15 @@ class PerfilUsuario {
       rol: rol ?? this.rol,
       aprobacion: aprobacion ?? this.aprobacion,
       cuentaActiva: cuentaActiva ?? this.cuentaActiva,
-      fotoUrl: fotoUrl ?? this.fotoUrl,
+      fotoUrl: limpiarFotoUrl ? null : (fotoUrl ?? this.fotoUrl),
+      tieneFotoPersonalizada: limpiarFotoUrl
+          ? false
+          : (tieneFotoPersonalizada ?? this.tieneFotoPersonalizada),
     );
   }
 
-  /// Instancia desde la respuesta de `perfil_del_usuario_actual()` o las columnas
-  /// equivalentes de `public."Usuarios"` (`id_usuario`, `nombres`, `apellidos`, `activo`).
+  /// Instancia desde la respuesta de `perfil_del_usuario_actual()`,
+  /// `obtener_perfil_paciente_propio()` o columnas equivalentes de `public."Usuarios"`.
   factory PerfilUsuario.desdeMapa(Map<String, dynamic> datos) {
     final id = (datos['id'] ?? datos['id_usuario'] ?? datos['id_paciente']);
     final nombre = (datos['nombre'] ?? datos['nombres']);
@@ -58,6 +65,8 @@ class PerfilUsuario {
     final fotoLimpia = fotoBruta is String && fotoBruta.trim().isNotEmpty
         ? fotoBruta.trim()
         : null;
+    final tienePersonalizada =
+        datos['tiene_foto_personalizada'] == true && fotoLimpia != null;
 
     if (id is! String ||
         nombre is! String ||
@@ -83,6 +92,7 @@ class PerfilUsuario {
       aprobacion: aprobacion as String,
       cuentaActiva: cuentaActiva,
       fotoUrl: fotoLimpia,
+      tieneFotoPersonalizada: tienePersonalizada,
     );
   }
 }

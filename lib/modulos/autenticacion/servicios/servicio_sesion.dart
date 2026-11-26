@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:boom/configuracion/configuracion_supabase.dart';
@@ -50,6 +51,19 @@ class ResultadoResolucionSesion {
 class ServicioSesion {
   const ServicioSesion();
 
+  /// Canal ligero en memoria para mantener sincronizados los cambios del perfil
+  /// del paciente (nombre, apellido y fotografia) entre Perfil e Inicio.
+  static final ValueNotifier<PerfilUsuario?> perfilPacienteSincronizado =
+      ValueNotifier<PerfilUsuario?>(null);
+
+  static void notificarPerfilPacienteActualizado(PerfilUsuario perfil) {
+    perfilPacienteSincronizado.value = perfil;
+  }
+
+  static void limpiarPerfilPacienteSincronizado() {
+    perfilPacienteSincronizado.value = null;
+  }
+
   /// Comprueba si existe una sesion persistente y obtiene el perfil desde el backend.
   /// No confunde un fallo de red con una cuenta inactiva.
   Future<ResultadoResolucionSesion> resolverSesionActual() async {
@@ -79,14 +93,39 @@ class ServicioSesion {
         );
       }
 
-      final perfilBase = PerfilUsuario.desdeMapa(
+      var perfilBase = PerfilUsuario.desdeMapa(
         Map<String, dynamic>.from(datos.first as Map),
       );
+
+      // Si el usuario es un paciente activo, consulta su fotografia personalizada
+      // almacenada en Supabase cuando la migracion 24 esta aplicada.
+      if (perfilBase.rol == 'paciente' && perfilBase.cuentaActiva) {
+        try {
+          final datosPaciente = await cliente.rpc(
+            'obtener_perfil_paciente_propio',
+          );
+          if (datosPaciente is List &&
+              datosPaciente.length == 1 &&
+              datosPaciente.first is Map) {
+            perfilBase = PerfilUsuario.desdeMapa(
+              Map<String, dynamic>.from(datosPaciente.first as Map),
+            );
+          }
+        } catch (_) {
+          // Mantiene compatibilidad si la RPC dedicada aun no esta desplegada.
+        }
+      }
+
       final fotoSesion = extraerFotoDesdeMetadatos(usuario.userMetadata);
       final perfil =
-          (perfilBase.fotoUrl == null || perfilBase.fotoUrl!.trim().isEmpty) &&
+          !perfilBase.tieneFotoPersonalizada &&
+              (perfilBase.fotoUrl == null ||
+                  perfilBase.fotoUrl!.trim().isEmpty) &&
               fotoSesion != null
-          ? perfilBase.copiarCon(fotoUrl: fotoSesion)
+          ? perfilBase.copiarCon(
+              fotoUrl: fotoSesion,
+              tieneFotoPersonalizada: false,
+            )
           : perfilBase;
       if (perfil.id != usuario.id) {
         await cerrarSesionLocalSilencioso(cliente);
@@ -98,6 +137,10 @@ class ServicioSesion {
       if (!perfil.cuentaActiva) {
         await cerrarSesionLocalSilencioso(cliente);
         return ResultadoResolucionSesion.cuentaInactiva(perfil: perfil);
+      }
+
+      if (perfil.rol == 'paciente') {
+        notificarPerfilPacienteActualizado(perfil);
       }
 
       return ResultadoResolucionSesion.autenticado(perfil);
@@ -150,6 +193,7 @@ class ServicioSesion {
   Future<void> cerrarSesion() async {
     GestorFavoritos.instancia.limpiar();
     GestorResultadoOrientacion.instancia.limpiar();
+    limpiarPerfilPacienteSincronizado();
     if (!ConfiguracionSupabase.estaConfigurado) {
       return;
     }
@@ -166,6 +210,7 @@ class ServicioSesion {
   ) async {
     GestorFavoritos.instancia.limpiar();
     GestorResultadoOrientacion.instancia.limpiar();
+    limpiarPerfilPacienteSincronizado();
     try {
       await cliente.auth.signOut(scope: SignOutScope.local);
     } catch (_) {}
