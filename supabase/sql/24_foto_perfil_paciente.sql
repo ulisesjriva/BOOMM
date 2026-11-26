@@ -93,7 +93,7 @@ REVOKE INSERT, UPDATE, DELETE ON public."Pacientes" FROM PUBLIC, anon, authentic
 CREATE TABLE IF NOT EXISTS psicobloom_interno.limpieza_fotos_paciente_pendientes (
     id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     id_usuario          UUID        NOT NULL REFERENCES public."Usuarios"(id_usuario) ON DELETE CASCADE,
-    foto_public_id      TEXT        NOT NULL UNIQUE,
+    foto_public_id      TEXT        NOT NULL,
     estado              TEXT        NOT NULL DEFAULT 'pendiente'
         CHECK (estado IN ('pendiente', 'eliminado')),
     intentos            INTEGER     NOT NULL DEFAULT 0 CHECK (intentos >= 0),
@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS psicobloom_interno.limpieza_fotos_paciente_pendientes
     creado_en           TIMESTAMPTZ NOT NULL DEFAULT now(),
     actualizado_en      TIMESTAMPTZ NOT NULL DEFAULT now(),
     eliminado_en        TIMESTAMPTZ,
+    CONSTRAINT uq_limpieza_fotos_paciente_public_id UNIQUE (foto_public_id),
     CONSTRAINT chk_limpieza_foto_paciente_public_id_propietario CHECK (
         foto_public_id ~ '^psicobloom/pacientes/[0-9a-f-]{36}_[0-9a-f-]{36}$'
         AND position(('psicobloom/pacientes/' || id_usuario::text || '_') IN foto_public_id) = 1
@@ -335,7 +336,7 @@ BEGIN
             v_public_id_anterior,
             'pendiente'
         )
-        ON CONFLICT (foto_public_id) DO NOTHING;
+        ON CONFLICT ON CONSTRAINT uq_limpieza_fotos_paciente_public_id DO NOTHING;
     END IF;
 
     RETURN QUERY
@@ -426,7 +427,7 @@ BEGIN
         v_public_id_actual,
         'pendiente'
     )
-    ON CONFLICT (foto_public_id) DO NOTHING;
+    ON CONFLICT ON CONSTRAINT uq_limpieza_fotos_paciente_public_id DO NOTHING;
 
     RETURN QUERY SELECT TRUE, v_public_id_actual;
 END;
@@ -482,7 +483,7 @@ BEGIN
         v_public_id_limpio,
         'pendiente'
     )
-    ON CONFLICT (foto_public_id) DO NOTHING;
+    ON CONFLICT ON CONSTRAINT uq_limpieza_fotos_paciente_public_id DO NOTHING;
 END;
 $$;
 
