@@ -24,38 +24,84 @@ class PantallaMisCitasPaciente extends StatefulWidget {
     this.perfilInicial,
     this.servicioSesion = const ServicioSesion(),
     this.repositorio,
+    this.seccionInicial,
   });
 
   final ServicioCitasPaciente? servicioCitas;
   final PerfilUsuario? perfilInicial;
   final ServicioSesion servicioSesion;
   final RepositorioProfesionales? repositorio;
+  final SeccionMisCitas? seccionInicial;
 
   @override
   State<PantallaMisCitasPaciente> createState() =>
       _PantallaMisCitasPacienteState();
 }
 
-class _PantallaMisCitasPacienteState extends State<PantallaMisCitasPaciente> {
+class _PantallaMisCitasPacienteState extends State<PantallaMisCitasPaciente>
+    with WidgetsBindingObserver {
   late final ControladorCitasPaciente _controlador;
+  Timer? _temporizadorCambioEstado;
 
   @override
   void initState() {
     super.initState();
-    _controlador = ControladorCitasPaciente(servicio: widget.servicioCitas)
-      ..addListener(_actualizarVista);
+    WidgetsBinding.instance.addObserver(this);
+    _controlador = ControladorCitasPaciente(
+      servicio: widget.servicioCitas,
+      seccionInicial: widget.seccionInicial,
+    )..addListener(_alCambiarControlador);
     unawaited(_controlador.cargarCitasPropias());
   }
 
-  void _actualizarVista() {
+  void _alCambiarControlador() {
+    _programarProximoCambioTemporal();
     if (mounted) {
       setState(() {});
     }
   }
 
+  /// Programa un unico temporizador exacto hasta el siguiente cambio real de
+  /// estado (inicio/fin de cita o vencimiento de solicitud) sin polling continuo.
+  void _programarProximoCambioTemporal() {
+    _temporizadorCambioEstado?.cancel();
+    _temporizadorCambioEstado = null;
+
+    if (!mounted || _controlador.estaCargandoCitasPropias) {
+      return;
+    }
+
+    final espera = _controlador.calcularTiempoHastaProximoCambioEstado();
+    if (espera == null) {
+      return;
+    }
+
+    _temporizadorCambioEstado = Timer(espera, () {
+      if (!mounted) {
+        return;
+      }
+      final huboCambio = _controlador.recalcularClasificacionTemporal();
+      if (!huboCambio) {
+        _programarProximoCambioTemporal();
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      final huboCambio = _controlador.recalcularClasificacionTemporal();
+      if (!huboCambio) {
+        _programarProximoCambioTemporal();
+      }
+    }
+  }
+
   @override
   void dispose() {
-    _controlador.removeListener(_actualizarVista);
+    WidgetsBinding.instance.removeObserver(this);
+    _temporizadorCambioEstado?.cancel();
+    _controlador.removeListener(_alCambiarControlador);
     _controlador.dispose();
     super.dispose();
   }
@@ -113,20 +159,10 @@ class _PantallaMisCitasPacienteState extends State<PantallaMisCitasPaciente> {
 
   @override
   Widget build(BuildContext context) {
+    final puedeVolver = Navigator.of(context).canPop();
+
     return Scaffold(
       backgroundColor: TemaPsicobloom.colorFondo,
-      appBar: AppBar(
-        title: const Text('Mis citas'),
-        actions: [
-          IconButton(
-            tooltip: 'Actualizar solicitudes',
-            onPressed: _controlador.estaCargandoCitasPropias
-                ? null
-                : () => unawaited(_controlador.cargarCitasPropias()),
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-        ],
-      ),
       bottomNavigationBar: BarraNavegacionPaciente(
         indiceSeleccionado: 3,
         alCambiarPestana: _gestionarCambioPestana,
@@ -135,62 +171,216 @@ class _PantallaMisCitasPacienteState extends State<PantallaMisCitasPaciente> {
         mostrarHojas: false,
         mostrarCorazones: false,
         child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              _construirEncabezadoInformativo(),
-              const SizedBox(height: 16),
-              _construirContenidoPrincipal(),
-              const SizedBox(height: 24),
-            ],
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 760),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
+                children: [
+                  _construirEncabezado(puedeVolver: puedeVolver),
+                  const SizedBox(height: 16),
+                  _construirSelectorSecciones(),
+                  const SizedBox(height: 16),
+                  _construirContenidoPrincipal(),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _construirEncabezadoInformativo() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TemaPsicobloom.colorSuperficie,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: TemaPsicobloom.colorBorde),
-      ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.calendar_month_outlined,
-            color: TemaPsicobloom.colorPrincipal,
-            size: 22,
-          ),
-          SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Solicitudes y citas registradas',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: TemaPsicobloom.colorTexto,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Aquí se muestran únicamente tus propias solicitudes de cita en horario de Ecuador continental (America/Guayaquil). Las nuevas solicitudes permanecen en estado pendiente hasta su revisión.',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: TemaPsicobloom.colorTextoSecundario,
-                    height: 1.35,
-                  ),
-                ),
-              ],
+  Widget _construirEncabezado({required bool puedeVolver}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (puedeVolver) ...[
+          Padding(
+            padding: const EdgeInsets.only(right: 6, top: 2),
+            child: IconButton(
+              tooltip: 'Volver',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(
+                Icons.arrow_back_rounded,
+                color: TemaPsicobloom.colorTexto,
+              ),
             ),
           ),
         ],
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Mis citas',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: TemaPsicobloom.colorTexto,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              SizedBox(height: 3),
+              Text(
+                'Consulta y organiza tus solicitudes.',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  color: TemaPsicobloom.colorTextoSecundario,
+                ),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          key: const Key('botonActualizarMisCitas'),
+          tooltip: 'Actualizar solicitudes',
+          onPressed: _controlador.estaCargandoCitasPropias
+              ? null
+              : () => unawaited(_controlador.cargarCitasPropias()),
+          icon: const Icon(
+            Icons.refresh_rounded,
+            color: TemaPsicobloom.colorPrincipal,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _construirSelectorSecciones() {
+    final totalProximas = _controlador.citasProximas.length;
+    final totalPendientes = _controlador.citasPendientes.length;
+    final totalHistorial = _controlador.citasHistorial.length;
+
+    return Container(
+      key: const Key('selectorSeccionesMisCitas'),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: TemaPsicobloom.colorLavanda.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: TemaPsicobloom.colorBorde),
+      ),
+      child: Row(
+        children: [
+          _construirOpcionSeccion(
+            key: const Key('pestanaCitasProximas'),
+            seccion: SeccionMisCitas.proximas,
+            etiqueta: 'Próximas',
+            cantidad: totalProximas,
+          ),
+          _construirOpcionSeccion(
+            key: const Key('pestanaCitasPendientes'),
+            seccion: SeccionMisCitas.pendientes,
+            etiqueta: 'Pendientes',
+            cantidad: totalPendientes,
+          ),
+          _construirOpcionSeccion(
+            key: const Key('pestanaCitasHistorial'),
+            seccion: SeccionMisCitas.historial,
+            etiqueta: 'Historial',
+            cantidad: totalHistorial,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _construirOpcionSeccion({
+    required Key key,
+    required SeccionMisCitas seccion,
+    required String etiqueta,
+    required int cantidad,
+  }) {
+    final seleccionada = _controlador.seccionSeleccionada == seccion;
+
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: seleccionada,
+        label: '$etiqueta ($cantidad)',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            key: key,
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => _controlador.seleccionarSeccion(seccion),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+              decoration: BoxDecoration(
+                color: seleccionada
+                    ? TemaPsicobloom.colorPrincipal
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: seleccionada
+                    ? [
+                        BoxShadow(
+                          color: TemaPsicobloom.colorPrincipal.withValues(
+                            alpha: 0.2,
+                          ),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      etiqueta,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: seleccionada
+                            ? FontWeight.w700
+                            : FontWeight.w600,
+                        color: seleccionada
+                            ? TemaPsicobloom.colorSobrePrincipal
+                            : TemaPsicobloom.colorTextoSecundario,
+                      ),
+                    ),
+                  ),
+                  if (cantidad > 0) ...[
+                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 1.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: seleccionada
+                            ? Colors.white.withValues(alpha: 0.22)
+                            : TemaPsicobloom.colorSuperficie,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '$cantidad',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: seleccionada
+                              ? TemaPsicobloom.colorSobrePrincipal
+                              : TemaPsicobloom.colorPrincipalOscuro,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -247,72 +437,154 @@ class _PantallaMisCitasPacienteState extends State<PantallaMisCitasPaciente> {
       );
     }
 
-    final citas = _controlador.citasPropias;
-    if (citas.isEmpty) {
-      return Container(
-        key: const Key('estadoSinCitasPaciente'),
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: TemaPsicobloom.colorSuperficie,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: TemaPsicobloom.colorBorde),
-        ),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.event_note_outlined,
-              size: 38,
-              color: TemaPsicobloom.colorPrincipal,
+    final citasVisibles = _controlador.citasVisiblesSeccionActual;
+    if (citasVisibles.isEmpty) {
+      return _construirEstadoVacio(_controlador.seccionSeleccionada);
+    }
+
+    final referenciaUtc = _controlador.obtenerAhoraUtc();
+
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topCenter,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ...citasVisibles.map(
+            (cita) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _construirTarjetaCita(cita, referenciaUtc: referenciaUtc),
             ),
-            const SizedBox(height: 10),
-            const Text(
-              'Aún no tienes solicitudes de cita registradas',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: TemaPsicobloom.colorTexto,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Explora el directorio de profesionales aprobados, entra a su perfil y pulsa "Consultar horarios" para enviar una solicitud.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: TemaPsicobloom.colorTextoSecundario,
-                height: 1.35,
+          ),
+          if (_controlador.tieneMasCitasEnSeccionActual) ...[
+            const SizedBox(height: 4),
+            Center(
+              child: OutlinedButton.icon(
+                key: const Key('botonVerMasCitas'),
+                onPressed: _controlador.mostrarMasCitas,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 42),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 10,
+                  ),
+                  side: const BorderSide(
+                    color: TemaPsicobloom.colorBorde,
+                    width: 1.2,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                icon: const Icon(Icons.expand_more_rounded, size: 18),
+                label: Text(
+                  _controlador.textoBotonVerMas,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
           ],
-        ),
-      );
-    }
-
-    return Column(
-      children: citas
-          .map(
-            (cita) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _construirTarjetaCita(cita),
-            ),
-          )
-          .toList(),
+        ],
+      ),
     );
   }
 
-  Widget _construirTarjetaCita(CitaPaciente cita) {
+  Widget _construirEstadoVacio(SeccionMisCitas seccion) {
+    final IconData icono;
+    final String mensaje;
+    final Key claveEstado;
+
+    switch (seccion) {
+      case SeccionMisCitas.proximas:
+        icono = Icons.event_available_outlined;
+        mensaje = 'No tienes citas próximas';
+        claveEstado = const Key('estadoVacioCitas_proximas');
+        break;
+      case SeccionMisCitas.pendientes:
+        icono = Icons.hourglass_empty_rounded;
+        mensaje = 'No tienes solicitudes pendientes';
+        claveEstado = const Key('estadoVacioCitas_pendientes');
+        break;
+      case SeccionMisCitas.historial:
+        icono = Icons.history_rounded;
+        mensaje = 'Todavía no tienes historial de citas';
+        claveEstado = const Key('estadoVacioCitas_historial');
+        break;
+    }
+
+    return Container(
+      key: claveEstado,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      decoration: BoxDecoration(
+        color: TemaPsicobloom.colorSuperficie,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: TemaPsicobloom.colorBorde),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: const BoxDecoration(
+              color: TemaPsicobloom.colorLavanda,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icono, size: 26, color: TemaPsicobloom.colorPrincipal),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            mensaje,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: TemaPsicobloom.colorTexto,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _construirTarjetaCita(
+    CitaPaciente cita, {
+    required DateTime referenciaUtc,
+  }) {
+    final esVencida = cita.esSolicitudPendienteVencida(
+      referenciaUtc: referenciaUtc,
+    );
+    final estaEnCurso = cita.estaEnCursoEnEcuador(referenciaUtc: referenciaUtc);
+    final etiquetaEstado = cita.etiquetaEstadoEnEcuador(
+      referenciaUtc: referenciaUtc,
+    );
+
     final Color colorFondoEstado;
     final Color colorTextoEstado;
-    if (cita.esPendiente) {
-      colorFondoEstado = const Color(0xFFFFF4E5);
-      colorTextoEstado = const Color(0xFF9A5B13);
+    if (esVencida) {
+      colorFondoEstado = const Color(0xFFF1EEF7);
+      colorTextoEstado = TemaPsicobloom.colorTextoSecundario;
+    } else if (cita.esPendiente) {
+      colorFondoEstado = TemaPsicobloom.colorFondoAdvertencia;
+      colorTextoEstado = TemaPsicobloom.colorAdvertencia;
     } else if (cita.esConfirmada) {
-      colorFondoEstado = TemaPsicobloom.colorMenta;
-      colorTextoEstado = TemaPsicobloom.colorSecundario;
+      colorFondoEstado = TemaPsicobloom.colorFondoExito;
+      colorTextoEstado = TemaPsicobloom.colorExito;
     } else {
       colorFondoEstado = TemaPsicobloom.colorFondoError;
       colorTextoEstado = TemaPsicobloom.colorError;
+    }
+
+    final IconData iconoModalidad;
+    if (cita.esModalidadVirtual) {
+      iconoModalidad = Icons.videocam_outlined;
+    } else if (cita.esModalidadHibrida) {
+      iconoModalidad = Icons.devices_other_outlined;
+    } else {
+      iconoModalidad = Icons.person_pin_circle_outlined;
     }
 
     return Container(
@@ -321,7 +593,19 @@ class _PantallaMisCitasPacienteState extends State<PantallaMisCitasPaciente> {
       decoration: BoxDecoration(
         color: TemaPsicobloom.colorSuperficie,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: TemaPsicobloom.colorBorde),
+        border: Border.all(
+          color: estaEnCurso
+              ? TemaPsicobloom.colorSecundario.withValues(alpha: 0.45)
+              : TemaPsicobloom.colorBorde,
+          width: estaEnCurso ? 1.3 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: TemaPsicobloom.colorPrincipal.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -336,12 +620,12 @@ class _PantallaMisCitasPacienteState extends State<PantallaMisCitasPaciente> {
                     Text(
                       cita.nombreProfesional,
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 15.5,
                         fontWeight: FontWeight.bold,
                         color: TemaPsicobloom.colorTexto,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Text(
                       cita.especialidadProfesional,
                       style: const TextStyle(
@@ -354,134 +638,172 @@ class _PantallaMisCitasPacienteState extends State<PantallaMisCitasPaciente> {
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                key: Key('chipEstadoCita_${cita.idCita}'),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: colorFondoEstado,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  cita.etiquetaEstado,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: colorTextoEstado,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    key: Key('chipEstadoCita_${cita.idCita}'),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorFondoEstado,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      etiquetaEstado,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                        color: colorTextoEstado,
+                      ),
+                    ),
                   ),
-                ),
+                  if (estaEnCurso) ...[
+                    const SizedBox(height: 5),
+                    Container(
+                      key: Key('insigniaCitaEnCurso_${cita.idCita}'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: TemaPsicobloom.colorMenta,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.circle,
+                            size: 7,
+                            color: TemaPsicobloom.colorSecundario,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'En curso',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: TemaPsicobloom.colorSecundario,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 14,
-            runSpacing: 8,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.event_outlined,
-                    size: 17,
-                    color: TemaPsicobloom.colorPrincipal,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    cita.fechaLegible,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                      color: TemaPsicobloom.colorTexto,
-                    ),
-                  ),
-                ],
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: TemaPsicobloom.colorFondo,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: TemaPsicobloom.colorBorde.withValues(alpha: 0.7),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.schedule_rounded,
-                    size: 17,
-                    color: TemaPsicobloom.colorPrincipal,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${cita.rangoHorarioTexto} (${cita.duracionMinutos} min)',
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                      color: TemaPsicobloom.colorTexto,
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.people_outline_rounded,
-                    size: 17,
-                    color: TemaPsicobloom.colorTextoSecundario,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Modalidad: ${cita.modalidadProfesional}',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: TemaPsicobloom.colorTextoSecundario,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
+            child: Wrap(
+              spacing: 14,
+              runSpacing: 8,
+              children: [
+                _construirDatoCompacto(
+                  icono: Icons.event_outlined,
+                  texto: cita.fechaLegible,
+                  resaltado: true,
+                ),
+                _construirDatoCompacto(
+                  icono: Icons.schedule_rounded,
+                  texto: cita.duracionMinutos > 0
+                      ? '${cita.rangoHorarioTexto} · ${cita.duracionMinutos} min'
+                      : cita.rangoHorarioTexto,
+                  resaltado: true,
+                ),
+                _construirDatoCompacto(
+                  icono: iconoModalidad,
+                  texto: cita.modalidadProfesional,
+                ),
+              ],
+            ),
           ),
-          if (cita.direccionConsultorio.isNotEmpty) ...[
+          if (cita.debeMostrarDireccionConsultorio) ...[
             const SizedBox(height: 8),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
-                  Icons.location_on_outlined,
-                  size: 16,
-                  color: TemaPsicobloom.colorTextoSecundario,
+                const Padding(
+                  padding: EdgeInsets.only(top: 1),
+                  child: Icon(
+                    Icons.location_on_outlined,
+                    size: 16,
+                    color: TemaPsicobloom.colorTextoSecundario,
+                  ),
                 ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    cita.direccionConsultorio,
+                    cita.esModalidadHibrida
+                        ? 'Consultorio (si es presencial): ${cita.direccionConsultorio}'
+                        : cita.direccionConsultorio,
                     style: const TextStyle(
                       fontSize: 12.5,
                       color: TemaPsicobloom.colorTextoSecundario,
+                      height: 1.3,
                     ),
                   ),
                 ),
               ],
             ),
           ],
-          if (cita.descripcionEstado.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: TemaPsicobloom.colorFondo,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: TemaPsicobloom.colorBorde),
-              ),
-              child: Text(
-                cita.descripcionEstado,
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  color: TemaPsicobloom.colorTextoSecundario,
-                  height: 1.3,
-                ),
+          if (esVencida) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'El horario venció sin confirmación.',
+              style: TextStyle(
+                fontSize: 12,
+                color: TemaPsicobloom.colorTextoSecundario,
               ),
             ),
           ],
         ],
       ),
+    );
+  }
+
+  Widget _construirDatoCompacto({
+    required IconData icono,
+    required String texto,
+    bool resaltado = false,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          icono,
+          size: 16,
+          color: resaltado
+              ? TemaPsicobloom.colorPrincipal
+              : TemaPsicobloom.colorTextoSecundario,
+        ),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(
+            texto,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: resaltado ? FontWeight.w600 : FontWeight.w500,
+              color: resaltado
+                  ? TemaPsicobloom.colorTexto
+                  : TemaPsicobloom.colorTextoSecundario,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,5 +1,8 @@
 import 'package:boom/modulos/profesional/modelos/horario_disponibilidad.dart';
 
+/// Secciones de organizacion visual en la pantalla Mis citas del paciente.
+enum SeccionMisCitas { proximas, pendientes, historial }
+
 class CitaPaciente {
   const CitaPaciente({
     required this.idCita,
@@ -55,6 +58,31 @@ class CitaPaciente {
     return diferencia > 0 ? diferencia : 0;
   }
 
+  /// Fecha y hora de inicio en hora pared de Ecuador continental (America/Guayaquil).
+  DateTime get fechaHoraInicioEcuador {
+    return DateTime(
+      fecha.year,
+      fecha.month,
+      fecha.day,
+      minutosInicio ~/ 60,
+      minutosInicio % 60,
+    );
+  }
+
+  /// Fecha y hora de finalizacion en hora pared de Ecuador continental (America/Guayaquil).
+  DateTime get fechaHoraFinEcuador {
+    final minutosCierre = minutosFin > minutosInicio
+        ? minutosFin
+        : minutosInicio;
+    return DateTime(
+      fecha.year,
+      fecha.month,
+      fecha.day,
+      minutosCierre ~/ 60,
+      minutosCierre % 60,
+    );
+  }
+
   bool get esPendiente => estado.trim().toLowerCase() == 'pendiente';
 
   bool get esConfirmada => estado.trim().toLowerCase() == 'confirmada';
@@ -62,6 +90,68 @@ class CitaPaciente {
   bool get esRechazada => estado.trim().toLowerCase() == 'rechazada';
 
   bool get esCancelada => estado.trim().toLowerCase() == 'cancelada';
+
+  bool get esModalidadVirtual =>
+      modalidadProfesional.trim().toLowerCase() == 'virtual';
+
+  bool get esModalidadHibrida {
+    final limpia = modalidadProfesional.trim().toLowerCase();
+    return limpia.contains('híbrid') || limpia.contains('hibrid');
+  }
+
+  /// Indica si la direccion fisica debe mostrarse en la tarjeta sin contradecir
+  /// la modalidad (en modalidad Virtual no se presenta como lugar de atencion).
+  bool get debeMostrarDireccionConsultorio =>
+      direccionConsultorio.trim().isNotEmpty && !esModalidadVirtual;
+
+  /// Verdadero cuando la fecha y hora de finalizacion ya pasaron o coinciden con
+  /// la hora actual de Ecuador continental (America/Guayaquil).
+  bool haFinalizadoEnEcuador({DateTime? referenciaUtc}) {
+    final ahoraEcuador = HorarioDisponibilidad.obtenerAhoraEnEcuador(
+      referenciaUtc: referenciaUtc,
+    );
+    return !fechaHoraFinEcuador.isAfter(ahoraEcuador);
+  }
+
+  /// Verdadero cuando una cita confirmada se encuentra actualmente en curso
+  /// (inicio <= ahora < fin en America/Guayaquil).
+  bool estaEnCursoEnEcuador({DateTime? referenciaUtc}) {
+    if (!esConfirmada) {
+      return false;
+    }
+    final ahoraEcuador = HorarioDisponibilidad.obtenerAhoraEnEcuador(
+      referenciaUtc: referenciaUtc,
+    );
+    return !ahoraEcuador.isBefore(fechaHoraInicioEcuador) &&
+        fechaHoraFinEcuador.isAfter(ahoraEcuador);
+  }
+
+  /// Solicitud persistida como 'pendiente' cuyo horario de finalizacion ya vencio.
+  /// No altera el estado persistente en Supabase; solo clasificacion visual.
+  bool esSolicitudPendienteVencida({DateTime? referenciaUtc}) {
+    return esPendiente && haFinalizadoEnEcuador(referenciaUtc: referenciaUtc);
+  }
+
+  /// Clasifica la cita en Proximas, Pendientes o Historial segun su estado real
+  /// y la hora actual de Ecuador continental (America/Guayaquil).
+  SeccionMisCitas clasificarSeccion({DateTime? referenciaUtc}) {
+    if (esConfirmada && !haFinalizadoEnEcuador(referenciaUtc: referenciaUtc)) {
+      return SeccionMisCitas.proximas;
+    }
+    if (esPendiente && !haFinalizadoEnEcuador(referenciaUtc: referenciaUtc)) {
+      return SeccionMisCitas.pendientes;
+    }
+    return SeccionMisCitas.historial;
+  }
+
+  /// Etiqueta visual del estado considerando vencimiento de solicitudes pendientes
+  /// en America/Guayaquil, sin inventar estados como "Completada".
+  String etiquetaEstadoEnEcuador({DateTime? referenciaUtc}) {
+    if (esSolicitudPendienteVencida(referenciaUtc: referenciaUtc)) {
+      return 'Vencida';
+    }
+    return etiquetaEstado;
+  }
 
   String get etiquetaEstado {
     if (esPendiente) {

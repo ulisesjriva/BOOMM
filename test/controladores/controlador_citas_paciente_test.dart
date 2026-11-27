@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:boom/modelos/profesional.dart';
 import 'package:boom/modulos/paciente/controladores/controlador_citas_paciente.dart';
 import 'package:boom/modulos/paciente/servicios/servicio_citas_paciente.dart';
+import 'package:boom/modulos/paciente/vistas/pantalla_mis_citas_paciente.dart';
 import 'package:boom/modulos/paciente/vistas/pantalla_perfil_publico_profesional.dart';
 import 'package:boom/modulos/profesional/modelos/horario_disponibilidad.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
@@ -59,6 +60,7 @@ class _BackendCitasFalso {
       <Map<String, dynamic>>[];
   final List<Map<String, dynamic>> filasCitas = <Map<String, dynamic>>[];
   int _secuenciaCita = 1;
+  int llamadasListarCitasPropias = 0;
 
   ServicioCitasPaciente crearServicioParaUsuario(String? idUsuario) {
     return ServicioCitasPaciente(
@@ -280,6 +282,7 @@ class _BackendCitasFalso {
         return <Map<String, dynamic>>[Map<String, dynamic>.from(nuevaCita)];
 
       case 'listar_citas_paciente_propias':
+        llamadasListarCitasPropias++;
         final propias = filasCitas
             .where((c) => c['id_paciente'] == idPac)
             .map((c) => Map<String, dynamic>.from(c))
@@ -698,4 +701,415 @@ void main() {
       },
     );
   });
+
+  group(
+    'Mejora 7 - Organizacion, vencimientos, Ver 5 mas y UI de Mis citas',
+    () {
+      Map<String, dynamic> crearFilaCita({
+        required String id,
+        required String fecha,
+        required String horaInicio,
+        required String horaFin,
+        required String estado,
+        String nombreProfesional = 'Dra. Elena Viteri',
+        String especialidad = 'Psicología Clínica',
+        String modalidad = 'Presencial',
+        String direccion = 'Av. Daniel León Borja, Riobamba',
+        String? fechaSolicitudIso,
+      }) {
+        return <String, dynamic>{
+          'id_cita': id,
+          'id_paciente': 'pac-distinto-101',
+          'id_profesional': 'prof-aprobado-1',
+          'id_disponibilidad': 'disp-$id',
+          'nombre_profesional': nombreProfesional,
+          'especialidad_profesional': especialidad,
+          'modalidad_profesional': modalidad,
+          'direccion_consultorio': direccion,
+          'fecha': fecha,
+          'hora_inicio': horaInicio,
+          'hora_fin': horaFin,
+          'estado': estado,
+          'fecha_solicitud': fechaSolicitudIso ?? '2026-11-10T15:00:00Z',
+        };
+      }
+
+      test('clasifica correctamente Proximas (incluyendo en curso), Pendientes e Historial (incluyendo vencidas) en America/Guayaquil y ordena cronologicamente', () async {
+        // 2026-11-16 02:30 UTC equivale a 2026-11-15 21:30 en America/Guayaquil (UTC-05:00).
+        backend.ahoraUtc = DateTime.utc(2026, 11, 16, 2, 30, 0);
+        backend.filasCitas.addAll(<Map<String, dynamic>>[
+          // Confirmada en curso en Ecuador (21:00 - 22:00 del 15 nov), aunque en UTC ya sea 16 nov.
+          crearFilaCita(
+            id: 'conf-en-curso',
+            fecha: '2026-11-15',
+            horaInicio: '21:00',
+            horaFin: '22:00',
+            estado: 'confirmada',
+          ),
+          // Confirmada futura mas lejana
+          crearFilaCita(
+            id: 'conf-futura-2',
+            fecha: '2026-11-20',
+            horaInicio: '10:00',
+            horaFin: '11:00',
+            estado: 'confirmada',
+          ),
+          // Confirmada futura mas cercana
+          crearFilaCita(
+            id: 'conf-futura-1',
+            fecha: '2026-11-17',
+            horaInicio: '08:00',
+            horaFin: '09:00',
+            estado: 'confirmada',
+          ),
+          // Confirmada ya finalizada -> Historial (conserva estado 'confirmada', no 'completada')
+          crearFilaCita(
+            id: 'conf-pasada',
+            fecha: '2026-11-15',
+            horaInicio: '18:00',
+            horaFin: '19:00',
+            estado: 'confirmada',
+          ),
+          // Pendiente vigente (termina a las 22:00 en Ecuador)
+          crearFilaCita(
+            id: 'pend-vigente-1',
+            fecha: '2026-11-15',
+            horaInicio: '21:00',
+            horaFin: '22:00',
+            estado: 'pendiente',
+          ),
+          // Pendiente futura mas lejana
+          crearFilaCita(
+            id: 'pend-vigente-2',
+            fecha: '2026-11-19',
+            horaInicio: '15:00',
+            horaFin: '16:00',
+            estado: 'pendiente',
+          ),
+          // Pendiente vencida exactamente al minuto de cierre (21:30 == 21:30 Ecuador) -> Historial como Vencida
+          crearFilaCita(
+            id: 'pend-vencida-exacta',
+            fecha: '2026-11-15',
+            horaInicio: '20:30',
+            horaFin: '21:30',
+            estado: 'pendiente',
+          ),
+          // Rechazada futura -> Historial
+          crearFilaCita(
+            id: 'rechazada-reciente',
+            fecha: '2026-11-18',
+            horaInicio: '09:00',
+            horaFin: '10:00',
+            estado: 'rechazada',
+          ),
+          // Cancelada antigua -> Historial
+          crearFilaCita(
+            id: 'cancelada-antigua',
+            fecha: '2026-11-10',
+            horaInicio: '09:00',
+            horaFin: '10:00',
+            estado: 'cancelada',
+          ),
+        ]);
+
+        final controlador = ControladorCitasPaciente(
+          servicio: backend.crearServicioParaUsuario('usr-pac-1'),
+        );
+        await controlador.cargarCitasPropias();
+
+        // Proximas: en curso + futuras, orden ascendente (mas proxima primero)
+        expect(
+          controlador.citasProximas.map((c) => c.idCita).toList(),
+          equals(<String>['conf-en-curso', 'conf-futura-1', 'conf-futura-2']),
+        );
+        expect(
+          controlador.citasProximas.first.estaEnCursoEnEcuador(
+            referenciaUtc: backend.ahoraUtc,
+          ),
+          isTrue,
+        );
+
+        // Pendientes: solo vigentes (excluye vencida), orden ascendente
+        expect(
+          controlador.citasPendientes.map((c) => c.idCita).toList(),
+          equals(<String>['pend-vigente-1', 'pend-vigente-2']),
+        );
+
+        // Historial: rechazadas, canceladas, pendientes vencidas y confirmadas finalizadas,
+        // orden descendente (mas reciente a mas antigua)
+        expect(
+          controlador.citasHistorial.map((c) => c.idCita).toList(),
+          equals(<String>[
+            'rechazada-reciente',
+            'pend-vencida-exacta',
+            'conf-pasada',
+            'cancelada-antigua',
+          ]),
+        );
+
+        // La solicitud vencida conserva estado persistente 'pendiente' pero muestra etiqueta 'Vencida'
+        final vencida = controlador.citasHistorial.firstWhere(
+          (c) => c.idCita == 'pend-vencida-exacta',
+        );
+        expect(vencida.estado, equals('pendiente'));
+        expect(
+          vencida.etiquetaEstadoEnEcuador(referenciaUtc: backend.ahoraUtc),
+          equals('Vencida'),
+        );
+
+        // La confirmada finalizada conserva etiqueta real 'Confirmada' (nunca 'Completada')
+        final confirmadaPasada = controlador.citasHistorial.firstWhere(
+          (c) => c.idCita == 'conf-pasada',
+        );
+        expect(
+          confirmadaPasada.etiquetaEstadoEnEcuador(
+            referenciaUtc: backend.ahoraUtc,
+          ),
+          equals('Confirmada'),
+        );
+
+        // Si avanza el tiempo 35 min (22:05 Ecuador), tanto conf-en-curso como pend-vigente-1
+        // pasan automaticamente a Historial al recalcular sin recargar red.
+        backend.ahoraUtc = DateTime.utc(2026, 11, 16, 3, 5, 0);
+        final cambioDetectado = controlador.recalcularClasificacionTemporal();
+        expect(cambioDetectado, isTrue);
+        expect(
+          controlador.citasProximas.map((c) => c.idCita).toList(),
+          equals(<String>['conf-futura-1', 'conf-futura-2']),
+        );
+        expect(
+          controlador.citasPendientes.map((c) => c.idCita).toList(),
+          equals(<String>['pend-vigente-2']),
+        );
+        expect(
+          controlador.citasHistorial.any((c) => c.idCita == 'conf-en-curso'),
+          isTrue,
+        );
+        expect(
+          controlador.citasHistorial.any((c) => c.idCita == 'pend-vigente-1'),
+          isTrue,
+        );
+      });
+
+      testWidgets(
+        'muestra 5 citas inicialmente, carga 5 mas con Ver 5 mas sin recargar ni duplicar, muestra restante exacto y restablece a 5 al cambiar de seccion',
+        (tester) async {
+          tester.view.physicalSize = const Size(1280, 900);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(() {
+            tester.view.resetPhysicalSize();
+            tester.view.resetDevicePixelRatio();
+          });
+
+          // 2026-11-15 10:00 Ecuador
+          backend.ahoraUtc = DateTime.utc(2026, 11, 15, 15, 0, 0);
+          for (var i = 1; i <= 12; i++) {
+            final dia = (15 + i).toString().padLeft(2, '0');
+            backend.filasCitas.add(
+              crearFilaCita(
+                id: 'prox-$i',
+                fecha: '2026-11-$dia',
+                horaInicio: '09:00',
+                horaFin: '10:00',
+                estado: 'confirmada',
+                nombreProfesional: 'Dra. Profesional $i',
+              ),
+            );
+          }
+          backend.filasCitas.add(
+            crearFilaCita(
+              id: 'pend-1',
+              fecha: '2026-11-18',
+              horaInicio: '14:00',
+              horaFin: '15:00',
+              estado: 'pendiente',
+            ),
+          );
+
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: TemaPsicobloom.obtenerTema(),
+              home: PantallaMisCitasPaciente(
+                servicioCitas: backend.crearServicioParaUsuario('usr-pac-1'),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          // Encabezado limpio sin tarjeta antigua
+          expect(find.text('Mis citas'), findsOneWidget);
+          expect(
+            find.text('Consulta y organiza tus solicitudes.'),
+            findsOneWidget,
+          );
+          expect(find.text('Solicitudes y citas registradas'), findsNothing);
+
+          // Inicialmente muestra exactamente 5 citas y el boton "Ver 5 más"
+          expect(backend.llamadasListarCitasPropias, equals(1));
+          for (var i = 1; i <= 5; i++) {
+            expect(
+              find.byKey(Key('tarjetaCitaPaciente_prox-$i')),
+              findsOneWidget,
+            );
+          }
+          expect(
+            find.byKey(const Key('tarjetaCitaPaciente_prox-6')),
+            findsNothing,
+          );
+          expect(find.text('Ver 5 más'), findsOneWidget);
+
+          // Pulsa "Ver 5 más" -> muestra 10 citas sin recargar red ni duplicar y ofrece "Ver 2 más"
+          final botonVerMas = find.byKey(const Key('botonVerMasCitas'));
+          await tester.drag(find.byType(ListView), const Offset(0, -500));
+          await tester.pumpAndSettle();
+          await tester.tap(botonVerMas);
+          await tester.pumpAndSettle();
+
+          expect(backend.llamadasListarCitasPropias, equals(1));
+          for (var i = 1; i <= 10; i++) {
+            expect(
+              find.byKey(Key('tarjetaCitaPaciente_prox-$i')),
+              findsOneWidget,
+            );
+          }
+          expect(
+            find.byKey(const Key('tarjetaCitaPaciente_prox-11')),
+            findsNothing,
+          );
+          expect(find.text('Ver 2 más'), findsOneWidget);
+
+          // Pulsa "Ver 2 más" -> muestra las 12 citas y oculta el boton
+          await tester.drag(find.byType(ListView), const Offset(0, -1200));
+          await tester.pumpAndSettle();
+          await tester.tap(botonVerMas);
+          await tester.pumpAndSettle();
+
+          expect(
+            find.byKey(const Key('tarjetaCitaPaciente_prox-12')),
+            findsOneWidget,
+          );
+          expect(find.byKey(const Key('botonVerMasCitas')), findsNothing);
+
+          // Cambiar a Pendientes y regresar a Proximas restablece el limite a 5 citas
+          await tester.drag(find.byType(ListView), const Offset(0, 2000));
+          await tester.pumpAndSettle();
+          final pestanaPendientes = find.byKey(
+            const Key('pestanaCitasPendientes'),
+          );
+          await tester.tap(pestanaPendientes);
+          await tester.pumpAndSettle();
+          expect(
+            find.byKey(const Key('tarjetaCitaPaciente_pend-1')),
+            findsOneWidget,
+          );
+
+          await tester.tap(find.byKey(const Key('pestanaCitasProximas')));
+          await tester.pumpAndSettle();
+          expect(
+            find.byKey(const Key('tarjetaCitaPaciente_prox-5')),
+            findsOneWidget,
+          );
+          expect(
+            find.byKey(const Key('tarjetaCitaPaciente_prox-6')),
+            findsNothing,
+          );
+          expect(find.text('Ver 5 más'), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        'muestra estados vacios exactos en las tres secciones, respeta modalidad virtual/hibrida/presencial y funciona en pantalla movil Android',
+        (tester) async {
+          // Viewport movil Android estandar del proyecto (1080x2400 @ 2.0)
+          tester.view.physicalSize = const Size(1080, 2400);
+          tester.view.devicePixelRatio = 2.0;
+          addTearDown(() {
+            tester.view.resetPhysicalSize();
+            tester.view.resetDevicePixelRatio();
+          });
+
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: TemaPsicobloom.obtenerTema(),
+              home: PantallaMisCitasPaciente(
+                servicioCitas: backend.crearServicioParaUsuario('usr-pac-1'),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          // 1. Estados vacios exactos en las 3 pestanas
+          expect(find.text('No tienes citas próximas'), findsOneWidget);
+
+          await tester.tap(find.byKey(const Key('pestanaCitasPendientes')));
+          await tester.pumpAndSettle();
+          expect(find.text('No tienes solicitudes pendientes'), findsOneWidget);
+
+          await tester.tap(find.byKey(const Key('pestanaCitasHistorial')));
+          await tester.pumpAndSettle();
+          expect(
+            find.text('Todavía no tienes historial de citas'),
+            findsOneWidget,
+          );
+
+          // 2. Agrega citas con modalidades Virtual, Hibrida y vencida y pulsa actualizar
+          backend.filasCitas.addAll(<Map<String, dynamic>>[
+            crearFilaCita(
+              id: 'virtual-en-curso',
+              fecha: '2026-11-15',
+              horaInicio: '09:30',
+              horaFin: '10:30',
+              estado: 'confirmada',
+              modalidad: 'Virtual',
+              direccion: 'Calle Oculta 123, Riobamba',
+            ),
+            crearFilaCita(
+              id: 'hibrida-futura',
+              fecha: '2026-11-17',
+              horaInicio: '11:00',
+              horaFin: '12:00',
+              estado: 'confirmada',
+              modalidad: 'Híbrida',
+              direccion: 'Av. 10 de Agosto, Riobamba',
+            ),
+            crearFilaCita(
+              id: 'solicitud-vencida',
+              fecha: '2026-11-14',
+              horaInicio: '08:00',
+              horaFin: '09:00',
+              estado: 'pendiente',
+            ),
+          ]);
+
+          await tester.tap(find.byKey(const Key('botonActualizarMisCitas')));
+          await tester.pumpAndSettle();
+
+          // En Historial aparece la solicitud vencida con etiqueta "Vencida"
+          expect(
+            find.byKey(const Key('tarjetaCitaPaciente_solicitud-vencida')),
+            findsOneWidget,
+          );
+          expect(find.text('Vencida'), findsOneWidget);
+
+          // En Proximas: la virtual en curso muestra "Confirmada" + "En curso" y NO muestra direccion fisica
+          await tester.tap(find.byKey(const Key('pestanaCitasProximas')));
+          await tester.pumpAndSettle();
+          expect(
+            find.byKey(const Key('insigniaCitaEnCurso_virtual-en-curso')),
+            findsOneWidget,
+          );
+          expect(find.text('Virtual'), findsOneWidget);
+          expect(find.textContaining('Calle Oculta 123'), findsNothing);
+          // La hibrida identifica claramente la finalidad de la direccion del consultorio
+          expect(
+            find.text(
+              'Consultorio (si es presencial): Av. 10 de Agosto, Riobamba',
+            ),
+            findsOneWidget,
+          );
+          expect(tester.takeException(), isNull);
+        },
+      );
+    },
+  );
 }
