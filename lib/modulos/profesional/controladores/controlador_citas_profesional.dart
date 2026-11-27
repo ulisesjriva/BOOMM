@@ -157,9 +157,30 @@ class ControladorCitasProfesional extends ChangeNotifier {
       }
       _citas = List<CitaProfesional>.unmodifiable(nuevaLista);
 
-      _mensajeExito = citaActualizada.esConfirmada
-          ? 'Solicitud aceptada. La cita quedó confirmada y el horario permanece reservado.'
-          : 'Solicitud rechazada. La cita se conservó en el historial y el horario quedó nuevamente disponible.';
+      final decisionNormalizada = decision.trim().toLowerCase();
+      final esAceptacion =
+          decisionNormalizada == 'confirmada' ||
+          decisionNormalizada == 'aceptar' ||
+          decisionNormalizada == 'aceptada';
+
+      String? mensajeResultado;
+      if (citaActualizada.esConfirmada) {
+        mensajeResultado = 'Solicitud aceptada. La cita quedó confirmada y el horario permanece reservado.';
+      } else if (citaActualizada.esRechazada) {
+        mensajeResultado = 'Solicitud rechazada. La cita se conservó en el historial y el horario quedó nuevamente disponible.';
+      } else if (citaActualizada.esPendiente && esAceptacion) {
+        mensajeResultado = 'Solicitud aceptada. Quedó pendiente de adelanto y el horario permanece reservado mientras el paciente envía su comprobante.';
+      } else {
+        _mensajeErrorOperacion =
+            'El servidor devolvió un estado inesperado (${citaActualizada.estado}) al registrar tu respuesta. Actualiza las solicitudes para verificar el estado real.';
+        _estaProcesandoRespuesta = false;
+        _idCitaEnProceso = null;
+        notifyListeners();
+        await cargarCitasPropias(conservarMensajesOperacion: true);
+        return false;
+      }
+
+      _mensajeExito = mensajeResultado;
       _estaProcesandoRespuesta = false;
       _idCitaEnProceso = null;
       notifyListeners();

@@ -2,8 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:boom/modelos/especialidad.dart';
+import 'package:boom/modulos/profesional/modelos/configuracion_cobro_profesional.dart';
 import 'package:boom/modulos/profesional/modelos/perfil_profesional.dart';
 import 'package:boom/modulos/profesional/servicios/servicio_avisos_telegram.dart';
+import 'package:boom/modulos/profesional/servicios/servicio_cobro_profesional.dart';
 import 'package:boom/modulos/profesional/servicios/servicio_perfil_profesional.dart';
 import 'package:boom/modulos/profesional/servicios/servicio_ubicacion_consultorio.dart';
 import 'package:boom/repositorios/repositorio_especialidades.dart';
@@ -16,6 +18,7 @@ class ControladorPerfilProfesional extends ChangeNotifier {
     this.repositorioEspecialidades = const RepositorioEspecialidadesSupabase(),
     this.servicioUbicacion = const ServicioUbicacionConsultorio(),
     this.servicioTelegram = const ServicioAvisosTelegram(),
+    this.servicioCobro = const ServicioCobroProfesional(),
     PerfilProfesional? perfilInicial,
   }) : _perfil = perfilInicial {
     if (perfilInicial != null) {
@@ -32,6 +35,7 @@ class ControladorPerfilProfesional extends ChangeNotifier {
   final RepositorioEspecialidades repositorioEspecialidades;
   final ServicioUbicacionConsultorio servicioUbicacion;
   final ServicioAvisosTelegram servicioTelegram;
+  final ServicioCobroProfesional servicioCobro;
 
   PerfilProfesional? _perfil;
   List<Especialidad> _catalogoEspecialidades = const [];
@@ -46,6 +50,7 @@ class ControladorPerfilProfesional extends ChangeNotifier {
   bool _estaSubiendoFoto = false;
   bool _estaObteniendoUbicacion = false;
   bool _estaGestionandoTelegram = false;
+  bool _estaGestionandoCobro = false;
   bool _cerrado = false;
   String? _mensajeError;
   String? _mensajeExito;
@@ -54,6 +59,11 @@ class ControladorPerfilProfesional extends ChangeNotifier {
     conectado: false,
     tieneCodigoPendiente: false,
   );
+  ConfiguracionCobroProfesional _configuracionCobro =
+      const ConfiguracionCobroProfesional();
+  String? _urlTemporalVistaQr;
+  Uint8List? _bytesQrLocal;
+  String? _rutaQrPendiente;
 
   PerfilProfesional? get perfil => _perfil;
   List<Especialidad> get catalogoEspecialidades => _catalogoEspecialidades;
@@ -70,12 +80,19 @@ class ControladorPerfilProfesional extends ChangeNotifier {
   bool get estaObteniendoUbicacion => _estaObteniendoUbicacion;
   bool get estaGestionandoTelegram => _estaGestionandoTelegram;
   EstadoTelegramProfesional get estadoTelegram => _estadoTelegram;
+  bool get estaGestionandoCobro => _estaGestionandoCobro;
+  ConfiguracionCobroProfesional get configuracionCobro => _configuracionCobro;
+  String? get urlTemporalVistaQr => _urlTemporalVistaQr;
+  Uint8List? get bytesQrLocal => _bytesQrLocal;
+  String? get rutaQrEfectiva =>
+      _rutaQrPendiente ?? _configuracionCobro.rutaQrStorage;
   bool get ocupado =>
       _estaCargando ||
       _estaGuardando ||
       _estaSubiendoFoto ||
       _estaObteniendoUbicacion ||
-      _estaGestionandoTelegram;
+      _estaGestionandoTelegram ||
+      _estaGestionandoCobro;
   String? get mensajeError => _mensajeError;
   String? get mensajeExito => _mensajeExito;
   String? get avisoUbicacion => _avisoUbicacion;
@@ -118,6 +135,24 @@ class ControladorPerfilProfesional extends ChangeNotifier {
         }
       } catch (_) {
         // Los avisos por Telegram son opcionales y no bloquean la carga del perfil.
+      }
+
+      try {
+        final cobro = await servicioCobro.obtenerConfiguracionPropia();
+        if (!_cerrado) {
+          _configuracionCobro = cobro;
+          _rutaQrPendiente = null;
+          if (cobro.tieneQrGuardado) {
+            _urlTemporalVistaQr = await servicioCobro.obtenerUrlTemporalVistaQr(
+              cobro.rutaQrStorage!,
+            );
+          } else {
+            _urlTemporalVistaQr = null;
+          }
+        }
+      } catch (_) {
+        // La configuracion de cobro es aditiva y no bloquea la carga del perfil
+        // si la migracion SQL aun no ha sido aplicada.
       }
     } catch (error) {
       if (!_cerrado) {
@@ -481,6 +516,176 @@ class ControladorPerfilProfesional extends ChangeNotifier {
     } finally {
       if (!_cerrado) {
         _estaGestionandoTelegram = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<bool> seleccionarYSubirQrCobro({
+    ImageSource origen = ImageSource.gallery,
+  }) async {
+    if (_cerrado || ocupado) return false;
+    _estaGestionandoCobro = true;
+    _mensajeError = null;
+    _mensajeExito = null;
+    notifyListeners();
+
+    try {
+      final archivo = await servicioCobro.seleccionarImagenQr(origen: origen);
+      if (archivo == null || _cerrado) return false;
+
+      final rutaPrivada = await servicioCobro.subirQrPrivado(archivo);
+      if (_cerrado) return false;
+
+      _rutaQrPendiente = rutaPrivada;
+      _bytesQrLocal = archivo.bytes;
+      _urlTemporalVistaQr = await servicioCobro.obtenerUrlTemporalVistaQr(
+        rutaPrivada,
+      );
+      _mensajeExito = 'Código QR cargado de forma privada. Guarda la configuración de cobro para aplicarlo.';
+      return true;
+    } catch (error) {
+      // Se conserva intacta la configuracion previa si falla la seleccion o subida.
+      if (!_cerrado) {
+        _mensajeError = ServicioCobroProfesional.explicarError(error);
+      }
+      return false;
+    } finally {
+      if (!_cerrado) {
+        _estaGestionandoCobro = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<bool> guardarConfiguracionCobro({
+    required bool requiereAdelanto,
+    required String textoPrecioConsulta,
+    required String textoMontoAdelanto,
+    required String bancoBeneficiario,
+    required String titularBeneficiario,
+    required String tipoCuentaBeneficiario,
+    required String numeroCuentaReferencia,
+  }) async {
+    if (_cerrado || ocupado) return false;
+
+    final textoPrecioLimpio = textoPrecioConsulta.trim();
+    final textoAdelantoLimpio = textoMontoAdelanto.trim();
+
+    double? precio;
+    if (textoPrecioLimpio.isNotEmpty) {
+      precio = ConfiguracionCobroProfesional.parsearMontoUsd(textoPrecioLimpio);
+      if (precio == null || precio <= 0) {
+        _mensajeError = 'Ingresa un precio total válido en USD (hasta 2 decimales y mayor a 0).';
+        _mensajeExito = null;
+        notifyListeners();
+        return false;
+      }
+    }
+
+    double? adelanto;
+    if (textoAdelantoLimpio.isNotEmpty) {
+      adelanto = ConfiguracionCobroProfesional.parsearMontoUsd(
+        textoAdelantoLimpio,
+      );
+      if (adelanto == null || adelanto <= 0) {
+        _mensajeError = 'Ingresa un adelanto válido en USD (hasta 2 decimales y mayor a 0).';
+        _mensajeExito = null;
+        notifyListeners();
+        return false;
+      }
+    }
+
+    if (precio != null && adelanto != null && adelanto > precio) {
+      _mensajeError = 'El monto del adelanto no puede superar el precio total.';
+      _mensajeExito = null;
+      notifyListeners();
+      return false;
+    }
+
+    final rutaQr = rutaQrEfectiva?.trim();
+    final bancoLimpio = bancoBeneficiario.trim();
+    final titularLimpio = titularBeneficiario.trim();
+
+    if (requiereAdelanto) {
+      if (precio == null) {
+        _mensajeError = 'Ingresa el precio total de la consulta en USD antes de activar el adelanto.';
+        _mensajeExito = null;
+        notifyListeners();
+        return false;
+      }
+      if (adelanto == null) {
+        _mensajeError =
+            'Ingresa el monto del adelanto en USD antes de activarlo.';
+        _mensajeExito = null;
+        notifyListeners();
+        return false;
+      }
+      if (rutaQr == null || rutaQr.isEmpty) {
+        _mensajeError =
+            'Carga tu código QR bancario antes de activar el adelanto.';
+        _mensajeExito = null;
+        notifyListeners();
+        return false;
+      }
+      if (bancoLimpio.length < 2) {
+        _mensajeError =
+            'Indica el banco o entidad financiera del beneficiario.';
+        _mensajeExito = null;
+        notifyListeners();
+        return false;
+      }
+      if (titularLimpio.length < 3) {
+        _mensajeError = 'Indica el nombre completo del titular de la cuenta.';
+        _mensajeExito = null;
+        notifyListeners();
+        return false;
+      }
+    }
+
+    _estaGestionandoCobro = true;
+    _mensajeError = null;
+    _mensajeExito = null;
+    notifyListeners();
+
+    final candidata = ConfiguracionCobroProfesional(
+      requiereAdelanto: requiereAdelanto,
+      precioConsulta: precio,
+      montoAdelanto: adelanto,
+      rutaQrStorage: (rutaQr != null && rutaQr.isNotEmpty) ? rutaQr : null,
+      bancoBeneficiario: bancoLimpio.isNotEmpty ? bancoLimpio : null,
+      titularBeneficiario: titularLimpio.isNotEmpty ? titularLimpio : null,
+      tipoCuentaBeneficiario: tipoCuentaBeneficiario.trim().isNotEmpty
+          ? tipoCuentaBeneficiario.trim()
+          : null,
+      numeroCuentaReferencia: numeroCuentaReferencia.trim().isNotEmpty
+          ? numeroCuentaReferencia.trim()
+          : null,
+    );
+
+    try {
+      final guardada = await servicioCobro.guardarConfiguracionPropia(
+        candidata,
+      );
+      if (_cerrado) return false;
+      _configuracionCobro = guardada;
+      _rutaQrPendiente = null;
+      if (guardada.tieneQrGuardado && _bytesQrLocal == null) {
+        _urlTemporalVistaQr = await servicioCobro.obtenerUrlTemporalVistaQr(
+          guardada.rutaQrStorage!,
+        );
+      }
+      _mensajeExito = 'Configuración de cobro guardada correctamente.';
+      return true;
+    } catch (error) {
+      // Se conserva la configuracion anterior si falla el guardado en servidor.
+      if (!_cerrado) {
+        _mensajeError = ServicioCobroProfesional.explicarError(error);
+      }
+      return false;
+    } finally {
+      if (!_cerrado) {
+        _estaGestionandoCobro = false;
         notifyListeners();
       }
     }

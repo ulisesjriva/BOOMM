@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 
 import 'package:boom/modelos/profesional.dart';
 import 'package:boom/modulos/paciente/componentes/mapa_consultorio_ruta.dart';
+import 'package:boom/modulos/paciente/componentes/tarjeta_info_economica_profesional.dart';
+import 'package:boom/modulos/paciente/controladores/controlador_info_economica_profesional.dart';
 import 'package:boom/modulos/paciente/controladores/controlador_ruta_consultorio.dart';
 import 'package:boom/modulos/paciente/servicios/servicio_citas_paciente.dart';
+import 'package:boom/modulos/paciente/servicios/servicio_info_economica_profesional.dart';
 import 'package:boom/modulos/paciente/servicios/servicio_rutas_consultorio.dart';
 import 'package:boom/modulos/profesional/servicios/servicio_ubicacion_consultorio.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
@@ -23,6 +26,7 @@ class PantallaPerfilPublicoProfesional extends StatefulWidget {
   final ServicioUbicacionConsultorio servicioUbicacion;
   final ServicioRutasConsultorio servicioRutas;
   final ServicioCitasPaciente? servicioCitas;
+  final ServicioInfoEconomicaProfesional? servicioInfoEconomica;
 
   const PantallaPerfilPublicoProfesional({
     super.key,
@@ -31,6 +35,7 @@ class PantallaPerfilPublicoProfesional extends StatefulWidget {
     this.servicioUbicacion = const ServicioUbicacionConsultorio(),
     this.servicioRutas = const ServicioRutasConsultorio(),
     this.servicioCitas,
+    this.servicioInfoEconomica,
   });
 
   @override
@@ -41,6 +46,7 @@ class PantallaPerfilPublicoProfesional extends StatefulWidget {
 class _PantallaPerfilPublicoProfesionalState
     extends State<PantallaPerfilPublicoProfesional> {
   late final ControladorRutaConsultorio _controladorRuta;
+  late final ControladorInfoEconomicaProfesional _controladorInfoEconomica;
 
   @override
   void initState() {
@@ -49,6 +55,27 @@ class _PantallaPerfilPublicoProfesionalState
       servicioUbicacion: widget.servicioUbicacion,
       servicioRutas: widget.servicioRutas,
     )..addListener(_actualizarVista);
+    _controladorInfoEconomica = ControladorInfoEconomicaProfesional(
+      servicio: widget.servicioInfoEconomica,
+    )..addListener(_actualizarVista);
+    unawaited(
+      _controladorInfoEconomica.cargar(
+        widget.profesional.idProfesionalEfectivo,
+      ),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant PantallaPerfilPublicoProfesional oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.profesional.idProfesionalEfectivo !=
+        widget.profesional.idProfesionalEfectivo) {
+      unawaited(
+        _controladorInfoEconomica.cargar(
+          widget.profesional.idProfesionalEfectivo,
+        ),
+      );
+    }
   }
 
   void _actualizarVista() {
@@ -61,6 +88,8 @@ class _PantallaPerfilPublicoProfesionalState
   void dispose() {
     _controladorRuta.removeListener(_actualizarVista);
     _controladorRuta.dispose();
+    _controladorInfoEconomica.removeListener(_actualizarVista);
+    _controladorInfoEconomica.dispose();
     super.dispose();
   }
 
@@ -79,6 +108,7 @@ class _PantallaPerfilPublicoProfesionalState
         builder: (_) => PantallaHorariosProfesionalPaciente(
           profesional: prof,
           servicioCitas: widget.servicioCitas,
+          servicioInfoEconomica: widget.servicioInfoEconomica,
         ),
       ),
     );
@@ -103,6 +133,12 @@ class _PantallaPerfilPublicoProfesionalState
             padding: const EdgeInsets.all(20.0),
             children: [
               _construirCabeceraPerfil(prof),
+              const SizedBox(height: 16),
+              TarjetaInfoEconomicaProfesional(
+                controlador: _controladorInfoEconomica,
+                alReintentar: () =>
+                    unawaited(_controladorInfoEconomica.reintentar()),
+              ),
               const SizedBox(height: 18),
               _construirSeccionEspecialidadesYModalidad(prof, especialidades),
               const SizedBox(height: 16),

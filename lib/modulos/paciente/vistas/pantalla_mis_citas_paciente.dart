@@ -1,7 +1,10 @@
+import 'package:boom/nucleo/componentes/pantalla_gestion_cancelacion_cita.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:boom/configuracion/configuracion_supabase.dart';
+import 'package:boom/modelos/adelanto_cita.dart';
 import 'package:boom/modelos/perfil_usuario.dart';
 import 'package:boom/modulos/autenticacion/servicios/servicio_sesion.dart';
 import 'package:boom/modulos/paciente/componentes/barra_navegacion_paciente.dart';
@@ -9,6 +12,8 @@ import 'package:boom/modulos/paciente/controladores/controlador_citas_paciente.d
 import 'package:boom/modulos/paciente/modelos/cita_paciente.dart';
 import 'package:boom/modulos/paciente/servicios/servicio_citas_paciente.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
+import 'package:boom/nucleo/componentes/hoja_detalle_adelanto_cita.dart';
+import 'package:boom/nucleo/servicios/servicio_adelantos_citas.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 import 'package:boom/repositorios/repositorio_profesionales.dart';
 
@@ -21,12 +26,14 @@ class PantallaMisCitasPaciente extends StatefulWidget {
   const PantallaMisCitasPaciente({
     super.key,
     this.servicioCitas,
+    this.servicioAdelantos = const ServicioAdelantosCitas(),
     this.perfilInicial,
     this.servicioSesion = const ServicioSesion(),
     this.repositorio,
   });
 
   final ServicioCitasPaciente? servicioCitas;
+  final ServicioAdelantosCitas servicioAdelantos;
   final PerfilUsuario? perfilInicial;
   final ServicioSesion servicioSesion;
   final RepositorioProfesionales? repositorio;
@@ -38,13 +45,68 @@ class PantallaMisCitasPaciente extends StatefulWidget {
 
 class _PantallaMisCitasPacienteState extends State<PantallaMisCitasPaciente> {
   late final ControladorCitasPaciente _controlador;
+  Map<String, ResumenAdelantoCita> _adelantosPorCita = const {};
+  bool _cargandoAdelantos = false;
+  String? _errorAdelantos;
+
+  bool get _debeConsultarAdelantos =>
+      ConfiguracionSupabase.estaConfigurado ||
+      widget.servicioAdelantos.ejecutorRpc != null ||
+      widget.servicioAdelantos.lectorUsuarioActualId != null ||
+      widget.servicioAdelantos.runtimeType != ServicioAdelantosCitas;
 
   @override
   void initState() {
     super.initState();
     _controlador = ControladorCitasPaciente(servicio: widget.servicioCitas)
       ..addListener(_actualizarVista);
-    unawaited(_controlador.cargarCitasPropias());
+    unawaited(_recargarTodo());
+  }
+
+  Future<void> _recargarTodo() async {
+    await Future.wait([_controlador.cargarCitasPropias(), _cargarAdelantos()]);
+  }
+
+  Future<void> _cargarAdelantos() async {
+    if (!_debeConsultarAdelantos) return;
+    if (mounted) {
+      setState(() {
+        _cargandoAdelantos = true;
+        _errorAdelantos = null;
+      });
+    }
+    try {
+      final mapa = await widget.servicioAdelantos
+          .listarResumenAdelantosVisibles();
+      if (mounted) {
+        setState(() {
+          _adelantosPorCita = mapa;
+          _errorAdelantos = null;
+          _cargandoAdelantos = false;
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _errorAdelantos = ServicioAdelantosCitas.explicarError(error);
+          _cargandoAdelantos = false;
+        });
+      }
+    }
+  }
+
+  void _abrirDetalleAdelanto(String idCita) {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => HojaDetalleAdelantoCita(
+          idCita: idCita,
+          esProfesional: false,
+          servicio: widget.servicioAdelantos,
+          alActualizar: () => unawaited(_recargarTodo()),
+        ),
+      ),
+    );
   }
 
   void _actualizarVista() {
@@ -122,7 +184,7 @@ class _PantallaMisCitasPacienteState extends State<PantallaMisCitasPaciente> {
             tooltip: 'Actualizar solicitudes',
             onPressed: _controlador.estaCargandoCitasPropias
                 ? null
-                : () => unawaited(_controlador.cargarCitasPropias()),
+                : () => unawaited(_recargarTodo()),
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
@@ -238,7 +300,7 @@ class _PantallaMisCitasPacienteState extends State<PantallaMisCitasPaciente> {
             const SizedBox(height: 12),
             OutlinedButton.icon(
               key: const Key('botonReintentarMisCitasPaciente'),
-              onPressed: () => unawaited(_controlador.cargarCitasPropias()),
+              onPressed: () => unawaited(_recargarTodo()),
               icon: const Icon(Icons.refresh_rounded, size: 18),
               label: const Text('Reintentar'),
             ),
@@ -461,6 +523,44 @@ class _PantallaMisCitasPacienteState extends State<PantallaMisCitasPaciente> {
               ],
             ),
           ],
+          if (_errorAdelantos != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              key: Key('avisoErrorAdelantoPaciente_${cita.idCita}'),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: TemaPsicobloom.colorFondoAdvertencia,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'No se pudo comprobar el estado de adelanto de esta cita.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: TemaPsicobloom.colorAdvertencia,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _cargandoAdelantos
+                        ? null
+                        : () => unawaited(_recargarTodo()),
+                    child: const Text('Reintentar'),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (_adelantosPorCita[cita.idCita] != null) ...[
+            const SizedBox(height: 10),
+            _construirResumenAdelantoPaciente(_adelantosPorCita[cita.idCita]!),
+          ],
+          if (cita.esPendiente || cita.esConfirmada || cita.esCancelada)
+            BotonGestionCancelacion(idCita: cita.idCita,
+              servicioAdelantos: widget.servicioAdelantos,
+              alActualizar: () { if (mounted) unawaited(_recargarTodo()); }),
           if (cita.descripcionEstado.isNotEmpty) ...[
             const SizedBox(height: 10),
             Container(
@@ -480,6 +580,71 @@ class _PantallaMisCitasPacienteState extends State<PantallaMisCitasPaciente> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _construirResumenAdelantoPaciente(ResumenAdelantoCita adelanto) {
+    return Container(
+      key: Key('resumenAdelantoPaciente_${adelanto.idCita}'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: TemaPsicobloom.colorLavanda.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: TemaPsicobloom.colorPrincipal.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.payments_outlined,
+                size: 16,
+                color: TemaPsicobloom.colorPrincipal,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Adelanto: ${adelanto.textoMontoAdelanto} • ${adelanto.etiquetaEstado}',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.bold,
+                    color: TemaPsicobloom.colorTexto,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (adelanto.textoLimitePagoEcuador != null &&
+              adelanto.estadoAdelanto == 'pendiente_adelanto') ...[
+            const SizedBox(height: 4),
+            Text(
+              'Límite de pago: ${adelanto.textoLimitePagoEcuador}',
+              style: const TextStyle(
+                fontSize: 12,
+                color: TemaPsicobloom.colorTextoSecundario,
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            key: Key('botonVerAdelantoPaciente_${adelanto.idCita}'),
+            onPressed: () => _abrirDetalleAdelanto(adelanto.idCita),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(0, 36),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            ),
+            icon: const Icon(Icons.qr_code_2_rounded, size: 17),
+            label: Text(
+              adelanto.requiereAccionPaciente
+                  ? 'Ver QR y enviar comprobante'
+                  : 'Ver estado del adelanto',
+            ),
+          ),
         ],
       ),
     );

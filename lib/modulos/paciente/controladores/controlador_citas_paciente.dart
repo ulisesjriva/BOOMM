@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:boom/modulos/profesional/modelos/horario_disponibilidad.dart';
+import 'package:boom/nucleo/servicios/servicio_adelantos_citas.dart';
 
 import '../modelos/cita_paciente.dart';
 import '../servicios/servicio_citas_paciente.dart';
@@ -24,6 +25,9 @@ class ControladorCitasPaciente extends ChangeNotifier {
   String? _mensajeErrorSolicitud;
   String? _mensajeErrorCitasPropias;
   String? _mensajeExitoSolicitud;
+  String? _claveIdempotenciaActiva;
+  String? _horarioClaveIdempotencia;
+  bool _ofertaDesactualizada = false;
 
   List<HorarioDisponibilidad> get horariosDisponibles => _horariosDisponibles;
   HorarioDisponibilidad? get horarioSeleccionado => _horarioSeleccionado;
@@ -33,6 +37,8 @@ class ControladorCitasPaciente extends ChangeNotifier {
   bool get estaCargandoHorarios => _estaCargandoHorarios;
   bool get estaEnviandoSolicitud => _estaEnviandoSolicitud;
   bool get estaCargandoCitasPropias => _estaCargandoCitasPropias;
+  bool get ofertaDesactualizada => _ofertaDesactualizada;
+  String? get claveIdempotenciaActiva => _claveIdempotenciaActiva;
 
   String? get mensajeErrorHorarios => _mensajeErrorHorarios;
   String? get mensajeErrorSolicitud => _mensajeErrorSolicitud;
@@ -55,7 +61,14 @@ class ControladorCitasPaciente extends ChangeNotifier {
     if (_estaEnviandoSolicitud) {
       return;
     }
+    final cambioHorario =
+        horario?.idDisponibilidad != _horarioSeleccionado?.idDisponibilidad;
     _horarioSeleccionado = horario;
+    if (cambioHorario) {
+      _claveIdempotenciaActiva = null;
+      _horarioClaveIdempotencia = null;
+      _ofertaDesactualizada = false;
+    }
     _mensajeErrorSolicitud = null;
     _mensajeExitoSolicitud = null;
     _ultimaCitaSolicitada = null;
@@ -98,7 +111,11 @@ class ControladorCitasPaciente extends ChangeNotifier {
     }
   }
 
-  Future<bool> enviarSolicitudCita({required String idProfesional}) async {
+  Future<bool> enviarSolicitudCita({
+    required String idProfesional,
+    bool? aceptaCondicionesAdelanto,
+    String? versionOfertaAdelanto,
+  }) async {
     if (_estaEnviandoSolicitud) {
       return false;
     }
@@ -116,6 +133,8 @@ class ControladorCitasPaciente extends ChangeNotifier {
     );
     if (!sigueEnFuturo) {
       _horarioSeleccionado = null;
+      _claveIdempotenciaActiva = null;
+      _horarioClaveIdempotencia = null;
       _mensajeErrorSolicitud = 'El horario seleccionado ya inició o venció según la hora de Ecuador continental. Selecciona un horario futuro.';
       notifyListeners();
       await cargarHorariosDisponibles(
@@ -125,7 +144,18 @@ class ControladorCitasPaciente extends ChangeNotifier {
       return false;
     }
 
+    // Conserva la misma clave de idempotencia durante reintentos sobre el mismo horario
+    final claveOperacion =
+        '${idProfesional.trim()}|${seleccionado.idDisponibilidad}';
+    if (_claveIdempotenciaActiva == null ||
+        _horarioClaveIdempotencia != claveOperacion) {
+      _claveIdempotenciaActiva =
+          ServicioAdelantosCitas.generarClaveIdempotencia('sol');
+      _horarioClaveIdempotencia = claveOperacion;
+    }
+
     _estaEnviandoSolicitud = true;
+    _ofertaDesactualizada = false;
     _mensajeErrorSolicitud = null;
     _mensajeExitoSolicitud = null;
     notifyListeners();
@@ -134,9 +164,14 @@ class ControladorCitasPaciente extends ChangeNotifier {
       final cita = await _servicio.solicitarCita(
         idProfesional: idProfesional,
         idDisponibilidad: seleccionado.idDisponibilidad,
+        claveIdempotencia: _claveIdempotenciaActiva,
+        aceptaCondicionesAdelanto: aceptaCondicionesAdelanto,
+        versionOfertaAdelanto: versionOfertaAdelanto,
       );
       _ultimaCitaSolicitada = cita;
       _horarioSeleccionado = null;
+      _claveIdempotenciaActiva = null;
+      _horarioClaveIdempotencia = null;
       _horariosDisponibles = List<HorarioDisponibilidad>.unmodifiable(
         _horariosDisponibles
             .where((item) => item.idDisponibilidad != cita.idDisponibilidad)
@@ -148,9 +183,12 @@ class ControladorCitasPaciente extends ChangeNotifier {
       return true;
     } on ErrorCitasPaciente catch (error) {
       _mensajeErrorSolicitud = error.mensaje;
+      _ofertaDesactualizada = error.esOfertaDesactualizada;
       _estaEnviandoSolicitud = false;
       if (error.esConflictoHorarioOcupado || error.esSolicitudDuplicada) {
         _horarioSeleccionado = null;
+        _claveIdempotenciaActiva = null;
+        _horarioClaveIdempotencia = null;
         notifyListeners();
         await cargarHorariosDisponibles(
           idProfesional,

@@ -2,10 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:boom/configuracion/configuracion_supabase.dart';
 import 'package:boom/modelos/profesional.dart';
+import 'package:boom/modulos/paciente/componentes/tarjeta_info_economica_profesional.dart';
 import 'package:boom/modulos/paciente/controladores/controlador_citas_paciente.dart';
+import 'package:boom/modulos/paciente/controladores/controlador_info_economica_profesional.dart';
 import 'package:boom/modulos/paciente/modelos/cita_paciente.dart';
 import 'package:boom/modulos/paciente/servicios/servicio_citas_paciente.dart';
+import 'package:boom/modulos/paciente/servicios/servicio_info_economica_profesional.dart';
 import 'package:boom/modulos/profesional/modelos/horario_disponibilidad.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
@@ -17,10 +21,12 @@ class PantallaHorariosProfesionalPaciente extends StatefulWidget {
     super.key,
     required this.profesional,
     this.servicioCitas,
+    this.servicioInfoEconomica,
   });
 
   final Profesional profesional;
   final ServicioCitasPaciente? servicioCitas;
+  final ServicioInfoEconomicaProfesional? servicioInfoEconomica;
 
   @override
   State<PantallaHorariosProfesionalPaciente> createState() =>
@@ -30,34 +36,102 @@ class PantallaHorariosProfesionalPaciente extends StatefulWidget {
 class _PantallaHorariosProfesionalPacienteState
     extends State<PantallaHorariosProfesionalPaciente> {
   late final ControladorCitasPaciente _controlador;
+  late final ControladorInfoEconomicaProfesional _controladorInfoEconomica;
+  bool _aceptaCondicionesAdelanto = false;
+  String? _ultimaVersionOfertaVista;
 
   String get _idProfesionalEfectivo => widget.profesional.idProfesionalEfectivo;
+
+  bool get _debeConsultarInfoEconomica =>
+      ConfiguracionSupabase.estaConfigurado ||
+      widget.servicioInfoEconomica != null;
+
+  bool get _puedeEnviarSegunInfoEconomica {
+    if (!_debeConsultarInfoEconomica) {
+      return true;
+    }
+    if (_controladorInfoEconomica.estaCargando ||
+        _controladorInfoEconomica.mensajeError != null) {
+      return false;
+    }
+    final info = _controladorInfoEconomica.info;
+    if (info == null || !info.profesionalVisible) {
+      return false;
+    }
+    if (info.exigeAdelanto && !_aceptaCondicionesAdelanto) {
+      return false;
+    }
+    return true;
+  }
 
   @override
   void initState() {
     super.initState();
     _controlador = ControladorCitasPaciente(servicio: widget.servicioCitas)
       ..addListener(_actualizarVista);
+    _controladorInfoEconomica = ControladorInfoEconomicaProfesional(
+      servicio: widget.servicioInfoEconomica,
+    )..addListener(_actualizarVista);
     unawaited(_controlador.cargarHorariosDisponibles(_idProfesionalEfectivo));
+    if (_debeConsultarInfoEconomica) {
+      unawaited(_controladorInfoEconomica.cargar(_idProfesionalEfectivo));
+    }
+  }
+
+  @override
+  void didUpdateWidget(
+    covariant PantallaHorariosProfesionalPaciente oldWidget,
+  ) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.profesional.idProfesionalEfectivo != _idProfesionalEfectivo) {
+      unawaited(_controlador.cargarHorariosDisponibles(_idProfesionalEfectivo));
+      if (_debeConsultarInfoEconomica) {
+        unawaited(_controladorInfoEconomica.cargar(_idProfesionalEfectivo));
+      }
+    }
   }
 
   void _actualizarVista() {
-    if (mounted) {
-      setState(() {});
+    if (!mounted) return;
+    final versionActual = _controladorInfoEconomica.info?.versionOferta;
+    if (versionActual != _ultimaVersionOfertaVista) {
+      _ultimaVersionOfertaVista = versionActual;
+      _aceptaCondicionesAdelanto = false;
     }
+    setState(() {});
   }
 
   @override
   void dispose() {
     _controlador.removeListener(_actualizarVista);
     _controlador.dispose();
+    _controladorInfoEconomica.removeListener(_actualizarVista);
+    _controladorInfoEconomica.dispose();
     super.dispose();
   }
 
   Future<void> _enviarSolicitud() async {
-    await _controlador.enviarSolicitudCita(
+    if (!_puedeEnviarSegunInfoEconomica) {
+      return;
+    }
+    final info = _controladorInfoEconomica.info;
+    final exigeAdelanto = info != null && info.exigeAdelanto;
+    final enviada = await _controlador.enviarSolicitudCita(
       idProfesional: _idProfesionalEfectivo,
+      aceptaCondicionesAdelanto: exigeAdelanto
+          ? _aceptaCondicionesAdelanto
+          : null,
+      versionOfertaAdelanto: exigeAdelanto ? info.versionOferta : null,
     );
+    if (!mounted) return;
+    if (enviada) {
+      setState(() => _aceptaCondicionesAdelanto = false);
+    } else if (_controlador.ofertaDesactualizada) {
+      setState(() => _aceptaCondicionesAdelanto = false);
+      if (_debeConsultarInfoEconomica) {
+        await _controladorInfoEconomica.cargar(_idProfesionalEfectivo);
+      }
+    }
   }
 
   void _abrirMisCitas() {
@@ -87,11 +161,20 @@ class _PantallaHorariosProfesionalPacienteState
                 (_controlador.estaCargandoHorarios ||
                     _controlador.estaEnviandoSolicitud)
                 ? null
-                : () => unawaited(
-                    _controlador.cargarHorariosDisponibles(
-                      _idProfesionalEfectivo,
-                    ),
-                  ),
+                : () {
+                    unawaited(
+                      _controlador.cargarHorariosDisponibles(
+                        _idProfesionalEfectivo,
+                      ),
+                    );
+                    if (_debeConsultarInfoEconomica) {
+                      unawaited(
+                        _controladorInfoEconomica.cargar(
+                          _idProfesionalEfectivo,
+                        ),
+                      );
+                    }
+                  },
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
@@ -363,6 +446,55 @@ class _PantallaHorariosProfesionalPacienteState
           _construirFilaResumen('Hora de fin', horario.horaFinNormalizada),
           const SizedBox(height: 6),
           _construirFilaResumen('Duración', '${horario.duracionMinutos} min'),
+          if (_debeConsultarInfoEconomica) ...[
+            const SizedBox(height: 12),
+            TarjetaInfoEconomicaProfesional(
+              controlador: _controladorInfoEconomica,
+              alReintentar: () =>
+                  unawaited(_controladorInfoEconomica.reintentar()),
+              mostrarAvisoResumenSolicitud: true,
+            ),
+          ],
+          if (_controladorInfoEconomica.info?.exigeAdelanto == true) ...[
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: _controlador.estaEnviandoSolicitud
+                  ? null
+                  : () => setState(
+                      () => _aceptaCondicionesAdelanto =
+                          !_aceptaCondicionesAdelanto,
+                    ),
+              borderRadius: BorderRadius.circular(10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Checkbox(
+                    key: const Key('casillaAceptarCondicionesAdelanto'),
+                    value: _aceptaCondicionesAdelanto,
+                    activeColor: TemaPsicobloom.colorPrincipal,
+                    onChanged: _controlador.estaEnviandoSolicitud
+                        ? null
+                        : (valor) => setState(
+                            () => _aceptaCondicionesAdelanto = valor ?? false,
+                          ),
+                  ),
+                  const Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(top: 10),
+                      child: Text(
+                        'Acepto las condiciones de adelanto: límite hasta 24 horas antes de la cita para transferir y adjuntar comprobante privado, y revisión del profesional en hasta 12 horas.',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: TemaPsicobloom.colorTexto,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -385,7 +517,9 @@ class _PantallaHorariosProfesionalPacienteState
             width: double.infinity,
             child: ElevatedButton.icon(
               key: const Key('botonEnviarSolicitudCita'),
-              onPressed: _controlador.estaEnviandoSolicitud
+              onPressed:
+                  (_controlador.estaEnviandoSolicitud ||
+                      !_puedeEnviarSegunInfoEconomica)
                   ? null
                   : () => unawaited(_enviarSolicitud()),
               icon: _controlador.estaEnviandoSolicitud

@@ -16,12 +16,14 @@ class ErrorCitasPaciente implements Exception {
     this.codigo,
     this.esConflictoHorarioOcupado = false,
     this.esSolicitudDuplicada = false,
+    this.esOfertaDesactualizada = false,
   });
 
   final String mensaje;
   final String? codigo;
   final bool esConflictoHorarioOcupado;
   final bool esSolicitudDuplicada;
+  final bool esOfertaDesactualizada;
 
   @override
   String toString() => mensaje;
@@ -136,6 +138,14 @@ class ServicioCitasPaciente {
       );
     }
 
+    if (codigo == '40001') {
+      return ErrorCitasPaciente(
+        mensajeOriginal.isNotEmpty ? mensajeOriginal : 'Las condiciones o tarifa de adelanto cambiaron recientemente. Revisa el resumen actualizado y vuelve a aceptar.',
+        codigo: '40001',
+        esOfertaDesactualizada: true,
+      );
+    }
+
     if (codigo == '42501') {
       return ErrorCitasPaciente(
         mensajeOriginal.isNotEmpty ? mensajeOriginal : 'No tienes permisos activos de paciente para realizar esta operación.',
@@ -226,6 +236,9 @@ class ServicioCitasPaciente {
   Future<CitaPaciente> solicitarCita({
     required String idProfesional,
     required String idDisponibilidad,
+    String? claveIdempotencia,
+    bool? aceptaCondicionesAdelanto,
+    String? versionOfertaAdelanto,
   }) async {
     _obtenerIdUsuarioActualExigido();
     final idProfesionalLimpio = idProfesional.trim();
@@ -237,13 +250,22 @@ class ServicioCitasPaciente {
       );
     }
 
-    final respuesta = await _invocarRpc(
-      'solicitar_cita_paciente',
-      <String, dynamic>{
-        'p_id_profesional': idProfesionalLimpio,
-        'p_id_disponibilidad': idDisponibilidadLimpio,
-      },
-    );
+    final parametros = <String, dynamic>{
+      'p_id_profesional': idProfesionalLimpio,
+      'p_id_disponibilidad': idDisponibilidadLimpio,
+    };
+    if (claveIdempotencia != null && claveIdempotencia.trim().isNotEmpty) {
+      parametros['p_clave_idempotencia'] = claveIdempotencia.trim();
+    }
+    if (aceptaCondicionesAdelanto != null) {
+      parametros['p_acepta_condiciones_adelanto'] = aceptaCondicionesAdelanto;
+    }
+    if (versionOfertaAdelanto != null &&
+        versionOfertaAdelanto.trim().isNotEmpty) {
+      parametros['p_version_oferta_adelanto'] = versionOfertaAdelanto.trim();
+    }
+
+    final respuesta = await _invocarRpc('solicitar_cita_paciente', parametros);
 
     if (respuesta is List && respuesta.isNotEmpty) {
       final primero = respuesta.first;

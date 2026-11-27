@@ -1,8 +1,13 @@
+import 'package:boom/nucleo/componentes/pantalla_gestion_cancelacion_cita.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:boom/configuracion/configuracion_supabase.dart';
+import 'package:boom/modelos/adelanto_cita.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
+import 'package:boom/nucleo/componentes/hoja_detalle_adelanto_cita.dart';
+import 'package:boom/nucleo/servicios/servicio_adelantos_citas.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 
 import '../controladores/controlador_citas_profesional.dart';
@@ -14,11 +19,13 @@ class PantallaCitasProfesional extends StatefulWidget {
     super.key,
     this.controlador,
     this.servicio,
+    this.servicioAdelantos = const ServicioAdelantosCitas(),
     this.esVistaIntegrada = false,
   });
 
   final ControladorCitasProfesional? controlador;
   final ServicioCitasProfesional? servicio;
+  final ServicioAdelantosCitas servicioAdelantos;
   final bool esVistaIntegrada;
 
   @override
@@ -29,6 +36,15 @@ class PantallaCitasProfesional extends StatefulWidget {
 class _PantallaCitasProfesionalState extends State<PantallaCitasProfesional> {
   late final ControladorCitasProfesional _controlador;
   late final bool _esControladorPropio;
+  Map<String, ResumenAdelantoCita> _adelantosPorCita = const {};
+  bool _cargandoAdelantos = false;
+  String? _errorAdelantos;
+
+  bool get _debeConsultarAdelantos =>
+      ConfiguracionSupabase.estaConfigurado ||
+      widget.servicioAdelantos.ejecutorRpc != null ||
+      widget.servicioAdelantos.lectorUsuarioActualId != null ||
+      widget.servicioAdelantos.runtimeType != ServicioAdelantosCitas;
 
   @override
   void initState() {
@@ -43,8 +59,56 @@ class _PantallaCitasProfesionalState extends State<PantallaCitasProfesional> {
     _controlador.addListener(_actualizarVista);
     if (_esControladorPropio ||
         (_controlador.citas.isEmpty && !_controlador.estaCargando)) {
-      unawaited(_controlador.cargarCitasPropias());
+      unawaited(_recargarTodo());
+    } else {
+      unawaited(_cargarAdelantos());
     }
+  }
+
+  Future<void> _recargarTodo() async {
+    await Future.wait([_controlador.cargarCitasPropias(), _cargarAdelantos()]);
+  }
+
+  Future<void> _cargarAdelantos() async {
+    if (!_debeConsultarAdelantos) return;
+    if (mounted) {
+      setState(() {
+        _cargandoAdelantos = true;
+        _errorAdelantos = null;
+      });
+    }
+    try {
+      final mapa = await widget.servicioAdelantos
+          .listarResumenAdelantosVisibles();
+      if (mounted) {
+        setState(() {
+          _adelantosPorCita = mapa;
+          _errorAdelantos = null;
+          _cargandoAdelantos = false;
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _errorAdelantos = ServicioAdelantosCitas.explicarError(error);
+          _cargandoAdelantos = false;
+        });
+      }
+    }
+  }
+
+  void _abrirRevisionAdelanto(String idCita) {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => HojaDetalleAdelantoCita(
+          idCita: idCita,
+          esProfesional: true,
+          servicio: widget.servicioAdelantos,
+          alActualizar: () => unawaited(_recargarTodo()),
+        ),
+      ),
+    );
   }
 
   void _actualizarVista() {
@@ -70,6 +134,9 @@ class _PantallaCitasProfesionalState extends State<PantallaCitasProfesional> {
       return;
     }
 
+    final adelanto = _adelantosPorCita[cita.idCita];
+    final esConAdelanto = adelanto != null;
+
     final confirmado = await showDialog<bool>(
       context: context,
       builder: (contextoDialogo) {
@@ -85,7 +152,9 @@ class _PantallaCitasProfesionalState extends State<PantallaCitasProfesional> {
           ),
           content: Text(
             esAceptacion
-                ? '¿Deseas aceptar la solicitud de ${cita.nombrePaciente} para el ${cita.fechaLegible} de ${cita.horaInicioNormalizada} a ${cita.horaFinNormalizada}?\n\nLa cita pasará a estado confirmada y el horario se mantendrá reservado.'
+                ? (esConAdelanto
+                      ? '¿Deseas aceptar la solicitud de ${cita.nombrePaciente} para el ${cita.fechaLegible} de ${cita.horaInicioNormalizada} a ${cita.horaFinNormalizada}?\n\nEl horario se mantendrá reservado y se habilitará el envío del adelanto (${adelanto.textoMontoAdelanto}). La cita se confirmará cuando verifiques el ingreso.'
+                      : '¿Deseas aceptar la solicitud de ${cita.nombrePaciente} para el ${cita.fechaLegible} de ${cita.horaInicioNormalizada} a ${cita.horaFinNormalizada}?\n\nLa cita pasará a estado confirmada y el horario se mantendrá reservado.')
                 : '¿Deseas rechazar la solicitud de ${cita.nombrePaciente} para el ${cita.fechaLegible} de ${cita.horaInicioNormalizada} a ${cita.horaFinNormalizada}?\n\nLa solicitud se conservará como rechazada en el historial y el horario volverá a estar disponible.',
             style: const TextStyle(height: 1.35),
           ),
@@ -126,13 +195,14 @@ class _PantallaCitasProfesionalState extends State<PantallaCitasProfesional> {
     } else {
       await _controlador.rechazarSolicitud(cita.idCita);
     }
+    await _cargarAdelantos();
   }
 
   @override
   Widget build(BuildContext context) {
     final cuerpo = RefreshIndicator(
       color: TemaPsicobloom.colorPrincipal,
-      onRefresh: () => _controlador.cargarCitasPropias(),
+      onRefresh: _recargarTodo,
       child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         children: [
@@ -169,7 +239,7 @@ class _PantallaCitasProfesionalState extends State<PantallaCitasProfesional> {
                 (_controlador.estaCargando ||
                     _controlador.estaProcesandoRespuesta)
                 ? null
-                : () => unawaited(_controlador.cargarCitasPropias()),
+                : () => unawaited(_recargarTodo()),
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
@@ -216,7 +286,7 @@ class _PantallaCitasProfesionalState extends State<PantallaCitasProfesional> {
                 (_controlador.estaCargando ||
                     _controlador.estaProcesandoRespuesta)
                 ? null
-                : () => unawaited(_controlador.cargarCitasPropias()),
+                : () => unawaited(_recargarTodo()),
             icon: const Icon(
               Icons.refresh_rounded,
               color: TemaPsicobloom.colorPrincipal,
@@ -232,7 +302,7 @@ class _PantallaCitasProfesionalState extends State<PantallaCitasProfesional> {
     return LayoutBuilder(
       builder: (context, restricciones) {
         final usarFilaUnica =
-            restricciones.maxWidth >= 340 && escalaTexto <= 1.25;
+            restricciones.maxWidth >= 520 && escalaTexto <= 1.25;
 
         if (usarFilaUnica) {
           return Container(
@@ -274,6 +344,8 @@ class _PantallaCitasProfesionalState extends State<PantallaCitasProfesional> {
         return _controlador.totalConfirmadas;
       case FiltroEstadoCitaProfesional.rechazadas:
         return _controlador.totalRechazadas;
+      case FiltroEstadoCitaProfesional.canceladas:
+        return _controlador.citas.where((cita) => cita.esCancelada).length;
     }
   }
 
@@ -728,7 +800,52 @@ class _PantallaCitasProfesionalState extends State<PantallaCitasProfesional> {
               ),
             ),
           ],
-          if (puedeResponder) ...[
+          if (_errorAdelantos != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              key: Key('avisoErrorAdelantoProfesional_${cita.idCita}'),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: TemaPsicobloom.colorFondoAdvertencia,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'No se pudo comprobar si esta solicitud requiere adelanto.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: TemaPsicobloom.colorAdvertencia,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _cargandoAdelantos
+                        ? null
+                        : () => unawaited(_recargarTodo()),
+                    child: const Text('Reintentar'),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (_adelantosPorCita[cita.idCita] != null) ...[
+            const SizedBox(height: 10),
+            _construirBloqueAdelantoProfesional(
+              _adelantosPorCita[cita.idCita]!,
+            ),
+          ],
+          if (cita.esPendiente || cita.esConfirmada || cita.esCancelada)
+            BotonGestionCancelacion(idCita: cita.idCita,
+              servicioAdelantos: widget.servicioAdelantos,
+              alActualizar: () { if (mounted) unawaited(_recargarTodo()); }),
+          if (puedeResponder &&
+              _errorAdelantos == null &&
+              !_cargandoAdelantos &&
+              (_adelantosPorCita[cita.idCita] == null ||
+                  _adelantosPorCita[cita.idCita]!.estadoAdelanto ==
+                      'pendiente_aceptacion')) ...[
             const SizedBox(height: 12),
             Row(
               children: [
@@ -776,6 +893,85 @@ class _PantallaCitasProfesionalState extends State<PantallaCitasProfesional> {
                   ),
                 ),
               ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _construirBloqueAdelantoProfesional(ResumenAdelantoCita adelanto) {
+    return Container(
+      key: Key('bloqueAdelantoProfesional_${adelanto.idCita}'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: adelanto.revisionDemorada
+            ? TemaPsicobloom.colorFondoAdvertencia
+            : TemaPsicobloom.colorLavanda.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: adelanto.revisionDemorada
+              ? TemaPsicobloom.colorAdvertencia.withValues(alpha: 0.5)
+              : TemaPsicobloom.colorPrincipal.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                adelanto.revisionDemorada
+                    ? Icons.warning_amber_rounded
+                    : Icons.payments_outlined,
+                size: 16,
+                color: adelanto.revisionDemorada
+                    ? TemaPsicobloom.colorAdvertencia
+                    : TemaPsicobloom.colorPrincipal,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Adelanto ${adelanto.textoMontoAdelanto} • ${adelanto.etiquetaEstado}',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.bold,
+                    color: adelanto.revisionDemorada
+                        ? TemaPsicobloom.colorAdvertencia
+                        : TemaPsicobloom.colorTexto,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (adelanto.revisionDemorada) ...[
+            const SizedBox(height: 4),
+            const Text(
+              'Han pasado más de 12 horas desde el envío del comprobante. Revisa y verifica el ingreso.',
+              style: TextStyle(
+                fontSize: 12,
+                color: TemaPsicobloom.colorAdvertencia,
+              ),
+            ),
+          ],
+          if (adelanto.estadoAdelanto != 'pendiente_aceptacion') ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              key: Key('botonRevisarAdelantoProfesional_${adelanto.idCita}'),
+              onPressed: () => _abrirRevisionAdelanto(adelanto.idCita),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 36),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+              ),
+              icon: const Icon(Icons.receipt_long_outlined, size: 17),
+              label: Text(
+                adelanto.requiereRevisionProfesional
+                    ? 'Revisar comprobante y verificar ingreso'
+                    : 'Ver detalle de adelanto',
+              ),
             ),
           ],
         ],

@@ -13,6 +13,7 @@ import 'package:boom/modulos/paciente/vistas/pantalla_perfil_publico_profesional
 import 'package:boom/modulos/profesional/controladores/controlador_perfil_profesional.dart';
 import 'package:boom/modulos/profesional/modelos/perfil_profesional.dart';
 import 'package:boom/modulos/profesional/servicios/servicio_avisos_telegram.dart';
+import 'package:boom/modulos/profesional/servicios/servicio_cobro_profesional.dart';
 import 'package:boom/modulos/profesional/servicios/servicio_perfil_profesional.dart';
 import 'package:boom/modulos/profesional/servicios/servicio_ubicacion_consultorio.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
@@ -31,6 +32,7 @@ class PantallaPerfilProfesional extends StatefulWidget {
   final RepositorioEspecialidades repositorioEspecialidades;
   final ServicioUbicacionConsultorio servicioUbicacion;
   final ServicioAvisosTelegram servicioTelegram;
+  final ServicioCobroProfesional servicioCobro;
   final ServicioGeoapify servicioGeoapify;
   final bool mostrarMapaInteractivo;
   final bool esVistaIntegrada;
@@ -46,6 +48,7 @@ class PantallaPerfilProfesional extends StatefulWidget {
     this.repositorioEspecialidades = const RepositorioEspecialidadesSupabase(),
     this.servicioUbicacion = const ServicioUbicacionConsultorio(),
     this.servicioTelegram = const ServicioAvisosTelegram(),
+    this.servicioCobro = const ServicioCobroProfesional(),
     this.servicioGeoapify = const ServicioGeoapify(),
     this.mostrarMapaInteractivo = true,
     this.esVistaIntegrada = false,
@@ -71,8 +74,15 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
   late final TextEditingController _controladorDireccion;
   late final TextEditingController _controladorLatitud;
   late final TextEditingController _controladorLongitud;
+  late final TextEditingController _controladorPrecioConsulta;
+  late final TextEditingController _controladorMontoAdelanto;
+  late final TextEditingController _controladorBancoBeneficiario;
+  late final TextEditingController _controladorTitularBeneficiario;
+  late final TextEditingController _controladorTipoCuentaBeneficiario;
+  late final TextEditingController _controladorNumeroCuentaReferencia;
 
   late final ControladorPerfilProfesional _controlador;
+  bool _requiereAdelanto = false;
   bool _buscandoDireccion = false;
   List<DireccionGeoapify> _direccionesEncontradas = const [];
   String? _avisoDireccion;
@@ -111,12 +121,19 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
     _controladorLongitud = TextEditingController(
       text: inicial?.longitud?.toStringAsFixed(6) ?? '',
     );
+    _controladorPrecioConsulta = TextEditingController();
+    _controladorMontoAdelanto = TextEditingController();
+    _controladorBancoBeneficiario = TextEditingController();
+    _controladorTitularBeneficiario = TextEditingController();
+    _controladorTipoCuentaBeneficiario = TextEditingController();
+    _controladorNumeroCuentaReferencia = TextEditingController();
 
     _controlador = ControladorPerfilProfesional(
       servicio: widget.servicio,
       repositorioEspecialidades: widget.repositorioEspecialidades,
       servicioUbicacion: widget.servicioUbicacion,
       servicioTelegram: widget.servicioTelegram,
+      servicioCobro: widget.servicioCobro,
       perfilInicial: inicial,
     );
     _controlador.addListener(_sincronizarVista);
@@ -144,6 +161,24 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
       _controladorLongitud.text = p.longitud?.toStringAsFixed(6) ?? '';
       widget.alActualizarPerfil?.call(p);
     }
+    _sincronizarCamposCobro();
+  }
+
+  void _sincronizarCamposCobro() {
+    final cobro = _controlador.configuracionCobro;
+    _requiereAdelanto = cobro.requiereAdelanto;
+    _controladorPrecioConsulta.text = cobro.precioConsulta != null
+        ? cobro.precioConsulta!.toStringAsFixed(2)
+        : '';
+    _controladorMontoAdelanto.text = cobro.montoAdelanto != null
+        ? cobro.montoAdelanto!.toStringAsFixed(2)
+        : '';
+    _controladorBancoBeneficiario.text = cobro.bancoBeneficiario ?? '';
+    _controladorTitularBeneficiario.text = cobro.titularBeneficiario ?? '';
+    _controladorTipoCuentaBeneficiario.text =
+        cobro.tipoCuentaBeneficiario ?? '';
+    _controladorNumeroCuentaReferencia.text =
+        cobro.numeroCuentaReferencia ?? '';
   }
 
   void _sincronizarVista() {
@@ -204,6 +239,12 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
     _controladorDireccion.dispose();
     _controladorLatitud.dispose();
     _controladorLongitud.dispose();
+    _controladorPrecioConsulta.dispose();
+    _controladorMontoAdelanto.dispose();
+    _controladorBancoBeneficiario.dispose();
+    _controladorTitularBeneficiario.dispose();
+    _controladorTipoCuentaBeneficiario.dispose();
+    _controladorNumeroCuentaReferencia.dispose();
     super.dispose();
   }
 
@@ -377,80 +418,85 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
           )
         : Form(
             key: _claveFormulario,
-            child: ListView(
+            child: SingleChildScrollView(
               key: const Key('listaPerfilProfesional'),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              children: [
-                if (widget.esVistaIntegrada) ...[
-                  _construirBarraSuperiorIntegrada(),
-                  const SizedBox(height: 12),
-                ],
-                _construirInsigniaEstadoAprobacionPerfil(),
-                const SizedBox(height: 16),
-                if (_controlador.motivoRechazo != null &&
-                    _controlador.motivoRechazo!.isNotEmpty) ...[
-                  _construirAvisoRechazo(_controlador.motivoRechazo!),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (widget.esVistaIntegrada) ...[
+                    _construirBarraSuperiorIntegrada(),
+                    const SizedBox(height: 12),
+                  ],
+                  _construirInsigniaEstadoAprobacionPerfil(),
                   const SizedBox(height: 16),
-                ],
-                _construirSeccionFotografia(),
-                const SizedBox(height: 16),
-                _construirSeccionAvisosTelegram(),
-                const SizedBox(height: 16),
-                _construirSeccionDatosProfesionales(),
-                const SizedBox(height: 16),
-                _construirSeccionEspecialidadesYServicios(),
-                const SizedBox(height: 16),
-                _construirSeccionModalidadYConsultorio(),
-                const SizedBox(height: 18),
-                if (_controlador.mensajeError != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: TemaPsicobloom.colorFondoError,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _controlador.mensajeError!,
-                      style: const TextStyle(
-                        color: TemaPsicobloom.colorError,
-                        fontSize: 13,
+                  if (_controlador.motivoRechazo != null &&
+                      _controlador.motivoRechazo!.isNotEmpty) ...[
+                    _construirAvisoRechazo(_controlador.motivoRechazo!),
+                    const SizedBox(height: 16),
+                  ],
+                  _construirSeccionFotografia(),
+                  const SizedBox(height: 16),
+                  _construirSeccionAvisosTelegram(),
+                  const SizedBox(height: 16),
+                  _construirSeccionDatosProfesionales(),
+                  const SizedBox(height: 16),
+                  _construirSeccionEspecialidadesYServicios(),
+                  const SizedBox(height: 16),
+                  _construirSeccionModalidadYConsultorio(),
+                  const SizedBox(height: 18),
+                  if (_controlador.mensajeError != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: TemaPsicobloom.colorFondoError,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _controlador.mensajeError!,
+                        style: const TextStyle(
+                          color: TemaPsicobloom.colorError,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
+                    const SizedBox(height: 12),
+                  ],
+                  ElevatedButton.icon(
+                    key: const Key('botonGuardarPerfilProfesional'),
+                    onPressed: _controlador.ocupado ? null : _guardarFormulario,
+                    icon: _controlador.estaGuardando
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.save_outlined),
+                    label: Text(
+                      _controlador.estaGuardando
+                          ? 'Guardando perfil...'
+                          : 'Guardar perfil profesional',
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                ],
-                ElevatedButton.icon(
-                  key: const Key('botonGuardarPerfilProfesional'),
-                  onPressed: _controlador.ocupado ? null : _guardarFormulario,
-                  icon: _controlador.estaGuardando
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.save_outlined),
-                  label: Text(
-                    _controlador.estaGuardando
-                        ? 'Guardando perfil...'
-                        : 'Guardar perfil profesional',
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    key: const Key('botonPrevisualizarPerfilPublico'),
+                    onPressed: _previsualizarPerfilPublico,
+                    icon: const Icon(Icons.visibility_outlined),
+                    label: const Text('Previsualizar perfil público'),
                   ),
-                ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  key: const Key('botonPrevisualizarPerfilPublico'),
-                  onPressed: _previsualizarPerfilPublico,
-                  icon: const Icon(Icons.visibility_outlined),
-                  label: const Text('Previsualizar perfil público'),
-                ),
-                if (widget.alCerrarSesion != null) ...[
                   const SizedBox(height: 18),
-                  _construirSeccionCierreSesion(),
+                  _construirSeccionCobroYAdelantos(),
+                  if (widget.alCerrarSesion != null) ...[
+                    const SizedBox(height: 18),
+                    _construirSeccionCierreSesion(),
+                  ],
+                  const SizedBox(height: 24),
                 ],
-                const SizedBox(height: 24),
-              ],
+              ),
             ),
           );
 
@@ -1363,6 +1409,356 @@ class _PantallaPerfilProfesionalState extends State<PantallaPerfilProfesional> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _elegirQrCobro() async {
+    final subido = await _controlador.seleccionarYSubirQrCobro(
+      origen: ImageSource.gallery,
+    );
+    if (!mounted) return;
+    if (subido && _controlador.mensajeExito != null) {
+      _mostrarSnackBar(_controlador.mensajeExito!, esError: false);
+    } else if (_controlador.mensajeError != null) {
+      _mostrarSnackBar(_controlador.mensajeError!, esError: true);
+    }
+  }
+
+  Future<void> _guardarConfiguracionCobro() async {
+    if (_controlador.ocupado) return;
+    FocusScope.of(context).unfocus();
+
+    final guardado = await _controlador.guardarConfiguracionCobro(
+      requiereAdelanto: _requiereAdelanto,
+      textoPrecioConsulta: _controladorPrecioConsulta.text,
+      textoMontoAdelanto: _controladorMontoAdelanto.text,
+      bancoBeneficiario: _controladorBancoBeneficiario.text,
+      titularBeneficiario: _controladorTitularBeneficiario.text,
+      tipoCuentaBeneficiario: _controladorTipoCuentaBeneficiario.text,
+      numeroCuentaReferencia: _controladorNumeroCuentaReferencia.text,
+    );
+    if (!mounted) return;
+    if (guardado) {
+      _sincronizarCamposCobro();
+      if (_controlador.mensajeExito != null) {
+        _mostrarSnackBar(_controlador.mensajeExito!, esError: false);
+      }
+    } else if (_controlador.mensajeError != null) {
+      _mostrarSnackBar(_controlador.mensajeError!, esError: true);
+    }
+  }
+
+  Widget _construirSeccionCobroYAdelantos() {
+    final tieneQr =
+        _controlador.rutaQrEfectiva != null &&
+        _controlador.rutaQrEfectiva!.trim().isNotEmpty;
+    final bytesQr = _controlador.bytesQrLocal;
+    final urlQr = _controlador.urlTemporalVistaQr;
+    final gestionando = _controlador.estaGestionandoCobro;
+
+    return Container(
+      key: const Key('seccionPerfil_cobroAdelanto'),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: TemaPsicobloom.colorSuperficie,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: TemaPsicobloom.colorBorde),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.qr_code_2_rounded,
+                size: 20,
+                color: TemaPsicobloom.colorPrincipal,
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Cobro y adelanto (USD)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: TemaPsicobloom.colorTexto,
+                  ),
+                ),
+              ),
+              Container(
+                key: const Key('estadoAdelantoEtiqueta'),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: _requiereAdelanto
+                      ? TemaPsicobloom.colorExito.withValues(alpha: 0.14)
+                      : TemaPsicobloom.colorFondo,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: _requiereAdelanto
+                        ? TemaPsicobloom.colorExito
+                        : TemaPsicobloom.colorBorde,
+                  ),
+                ),
+                child: Text(
+                  _requiereAdelanto ? 'Activo' : 'Opcional',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _requiereAdelanto
+                        ? TemaPsicobloom.colorExito
+                        : TemaPsicobloom.colorTextoSecundario,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Configura tu tarifa en USD, el adelanto opcional y tu código QR bancario privado.',
+            style: TextStyle(
+              fontSize: 13.5,
+              color: TemaPsicobloom.colorTextoSecundario,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Solicitar adelanto al confirmar citas',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: TemaPsicobloom.colorTexto,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Requiere precio, monto de adelanto, QR privado y datos mínimos del beneficiario.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: TemaPsicobloom.colorTextoSecundario,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Switch.adaptive(
+                key: const Key('interruptorRequiereAdelanto'),
+                value: _requiereAdelanto,
+                activeTrackColor: TemaPsicobloom.colorPrincipal,
+                onChanged: _controlador.ocupado
+                    ? null
+                    : (valor) => setState(() => _requiereAdelanto = valor),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _construirEtiquetaCampo('Precio total (USD)'),
+                    TextField(
+                      key: const Key('campoPrecioConsultaUsd'),
+                      controller: _controladorPrecioConsulta,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: 'Ej: 35.00',
+                        prefixText: '\$ ',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _construirEtiquetaCampo('Adelanto (USD)'),
+                    TextField(
+                      key: const Key('campoMontoAdelantoUsd'),
+                      controller: _controladorMontoAdelanto,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: 'Ej: 15.00',
+                        prefixText: '\$ ',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _construirEtiquetaCampo('Banco o entidad financiera'),
+          TextField(
+            key: const Key('campoBancoBeneficiario'),
+            controller: _controladorBancoBeneficiario,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(hintText: 'Ej: Banco Pichincha'),
+          ),
+          const SizedBox(height: 12),
+          _construirEtiquetaCampo('Titular de la cuenta'),
+          TextField(
+            key: const Key('campoTitularBeneficiario'),
+            controller: _controladorTitularBeneficiario,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(
+              hintText: 'Ej: Dra. Sofía Paredes',
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _construirEtiquetaCampo('Tipo de cuenta (opcional)'),
+                    TextField(
+                      key: const Key('campoTipoCuentaBeneficiario'),
+                      controller: _controladorTipoCuentaBeneficiario,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        hintText: 'Ahorros / Corriente',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _construirEtiquetaCampo('N.º de cuenta (opcional)'),
+                    TextField(
+                      key: const Key('campoNumeroCuentaReferencia'),
+                      controller: _controladorNumeroCuentaReferencia,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        hintText: 'Ej: 2204567890',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: TemaPsicobloom.colorFondo,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: TemaPsicobloom.colorBorde),
+            ),
+            child: Column(
+              children: [
+                if (bytesQr != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.memory(
+                      bytesQr,
+                      height: 180,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) => const Icon(
+                        Icons.qr_code_2_rounded,
+                        size: 64,
+                        color: TemaPsicobloom.colorPrincipal,
+                      ),
+                    ),
+                  )
+                else if (urlQr != null && urlQr.trim().isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      urlQr,
+                      height: 180,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) => const Icon(
+                        Icons.qr_code_2_rounded,
+                        size: 64,
+                        color: TemaPsicobloom.colorPrincipal,
+                      ),
+                    ),
+                  )
+                else
+                  Icon(
+                    tieneQr
+                        ? Icons.verified_user_outlined
+                        : Icons.qr_code_2_rounded,
+                    size: 56,
+                    color: tieneQr
+                        ? TemaPsicobloom.colorExito
+                        : TemaPsicobloom.colorTextoSecundario,
+                  ),
+                const SizedBox(height: 8),
+                Text(
+                  tieneQr
+                      ? 'QR bancario almacenado en carpeta privada (sin recorte ni compresión).'
+                      : 'Aún no has cargado un código QR bancario.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: TemaPsicobloom.colorTextoSecundario,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  key: const Key('botonCargarQrCobro'),
+                  onPressed: _controlador.ocupado ? null : _elegirQrCobro,
+                  icon: gestionando
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.upload_file_outlined, size: 18),
+                  label: Text(
+                    tieneQr ? 'Reemplazar QR bancario' : 'Cargar QR bancario',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          ElevatedButton.icon(
+            key: const Key('botonGuardarConfiguracionCobro'),
+            onPressed: _controlador.ocupado ? null : _guardarConfiguracionCobro,
+            icon: gestionando
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.savings_outlined),
+            label: Text(
+              gestionando
+                  ? 'Guardando cobro...'
+                  : 'Guardar configuración de cobro',
+            ),
+          ),
         ],
       ),
     );

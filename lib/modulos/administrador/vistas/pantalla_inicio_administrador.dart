@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:boom/configuracion/configuracion_supabase.dart';
+import 'package:boom/modelos/adelanto_cita.dart';
 import 'package:boom/modelos/especialidad.dart';
 import 'package:boom/modelos/perfil_usuario.dart';
 import 'package:boom/modulos/administrador/controladores/controlador_administracion.dart';
@@ -14,6 +15,7 @@ import 'package:boom/modulos/administrador/vistas/pantalla_mantenimiento_adminis
 import 'package:boom/modulos/autenticacion/servicios/servicio_sesion.dart';
 import 'package:boom/modulos/autenticacion/vistas/pantalla_opciones_acceso.dart';
 import 'package:boom/nucleo/componentes/fondo_decorativo_bloom.dart';
+import 'package:boom/nucleo/servicios/servicio_adelantos_citas.dart';
 import 'package:boom/nucleo/tema/tema_psicobloom.dart';
 
 /// Modulo completo de Administracion de PsicoBloom con navegacion en 5 pestanas:
@@ -22,12 +24,14 @@ class PantallaInicioAdministrador extends StatefulWidget {
   final PerfilUsuario perfilInicial;
   final ServicioSesion servicioSesion;
   final ServicioAdministracion servicioAdministracion;
+  final ServicioAdelantosCitas servicioAdelantos;
 
   const PantallaInicioAdministrador({
     super.key,
     required this.perfilInicial,
     this.servicioSesion = const ServicioSesion(),
     this.servicioAdministracion = const ServicioAdministracion(),
+    this.servicioAdelantos = const ServicioAdelantosCitas(),
   });
 
   @override
@@ -43,6 +47,34 @@ class _PantallaInicioAdministradorState
 
   int _indicePestana = 0;
   bool _estaCerrandoSesion = false;
+  Map<String, ResumenAdelantoCita> _adelantosCitas = const {};
+  String? _errorAdelantosAdmin;
+
+  Future<void> _cargarResumenAdelantosAdmin() async {
+    try {
+      final mapa = await widget.servicioAdelantos
+          .listarResumenAdelantosVisibles();
+      if (mounted) {
+        setState(() {
+          _adelantosCitas = mapa;
+          _errorAdelantosAdmin = null;
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _errorAdelantosAdmin = ServicioAdelantosCitas.explicarError(error);
+        });
+      }
+    }
+  }
+
+  Future<void> _recargarCitasYAdelantosAdmin() async {
+    await Future.wait([
+      _controlador.cargarCitas(reiniciar: true),
+      _cargarResumenAdelantosAdmin(),
+    ]);
+  }
 
   bool get _esAdministrador => widget.perfilInicial.rol == 'administrador';
 
@@ -133,6 +165,7 @@ class _PantallaInicioAdministradorState
         if (_controlador.citas.isEmpty) {
           unawaited(_controlador.cargarCitas(reiniciar: true));
         }
+        unawaited(_cargarResumenAdelantosAdmin());
         break;
     }
   }
@@ -1578,7 +1611,7 @@ class _PantallaInicioAdministradorState
 
   Widget _construirPestanaCitas() {
     return RefreshIndicator(
-      onRefresh: () => _controlador.cargarCitas(reiniciar: true),
+      onRefresh: _recargarCitasYAdelantosAdmin,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
         children: [
@@ -1699,6 +1732,34 @@ class _PantallaInicioAdministradorState
                               color: TemaPsicobloom.colorTexto,
                             ),
                           ),
+                          if (_errorAdelantosAdmin != null)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 4),
+                              child: Text(
+                                'Adelanto: estado no disponible (desliza para reintentar)',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: TemaPsicobloom.colorAdvertencia,
+                                ),
+                              ),
+                            )
+                          else if (_adelantosCitas[cita.idCita] != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                'Adelanto: ${_adelantosCitas[cita.idCita]!.etiquetaEstado}',
+                                key: Key('estadoAdelantoAdmin_${cita.idCita}'),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color:
+                                      _adelantosCitas[cita.idCita]!
+                                          .revisionDemorada
+                                      ? TemaPsicobloom.colorAdvertencia
+                                      : TemaPsicobloom.colorPrincipalOscuro,
+                                ),
+                              ),
+                            ),
                           if (cita.motivoRespuesta != null &&
                               cita.motivoRespuesta!.isNotEmpty)
                             Padding(

@@ -3,7 +3,8 @@ import 'horario_disponibilidad.dart';
 enum FiltroEstadoCitaProfesional {
   pendientes('pendiente', 'Pendientes'),
   confirmadas('confirmada', 'Confirmadas'),
-  rechazadas('rechazada', 'Rechazadas');
+  rechazadas('rechazada', 'Rechazadas'),
+  canceladas('cancelada', 'Canceladas');
 
   const FiltroEstadoCitaProfesional(this.valorEstado, this.etiqueta);
 
